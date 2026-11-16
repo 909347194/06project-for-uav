@@ -19,7 +19,7 @@
 │  ├─ worlds\guangzhou\  # 世界：region + building(5 个 shp 图层) + dem.tif + world.json（frame 真源）
 │  ├─ missions\demo_001\ # 任务包：mission/nests/uavs/tasks（经纬度真源）+ baseline
 │  └─ contracts\         # 两库互操作夹具（契约漂移测试用）
-├─ docs\                 # 四份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 + 配置示例（json / jsonc）
+├─ docs\                 # 四份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 + 两库各一份全量配置示例（json / jsonc）
 ├─ artifacts\  (可选，自己建)  # 建场产物 <world_id>/<label>/（1.15 GB，跟世界走，不进版本库）
 └─ results\    (可选，自己建)  # 你的输出（实验/回归），按 <world_id>/<mission_id>/ 分层
 ```
@@ -57,7 +57,7 @@
 | 输入 | 内存中的 `tasks` / `uavs` / `nests` + `cost_config`（或注入 `distance_fn`） | 建筑（`*.shp` / `*.geojson`）+ 可选 DEM / 禁飞区 + OD |
 | 输出 | `AllocateResult.tours`（任务序列 + 终点巢）、`metrics_dict()` | `RouteSegmentPlan`（`trajectory` 主交付 + `path_enu` 兜底 + 指标） |
 | 速度 | 毫秒级排序代理（缺省欧氏；切面尺子加 0.03 s/次） | 单航段 5.7–8.2 s（有场，本机实测 7.3–7.5 s；`on_demand` 5.5–5.6 s）；建场 120–140 s 一次 |
-| 状态 | **v0.2.0**：同巢起降 + 可配置距离尺子（欧氏 / 垂直切面），44 测试通过 | **v0.4.0**：几何层 + 时间域轨迹层已交付后端 |
+| 状态 | **v0.2.0**：同巢起降 + 可配置距离尺子（欧氏 / 垂直切面），47 测试通过 | **v0.4.0**：几何层 + 时间域轨迹层已交付后端 |
 
 调用链：`ta1.allocate(...)` 定稿 → 展开每条 tour（含"末任务 → 起飞巢"返航腿）→ 逐航段 `pp1.ctx.plan(...)` → 真 `duration_s` 回来复核时间窗与航程。详见 `docs/3任务分配-路径规划对接.md`。
 
@@ -102,7 +102,7 @@
 
 ```powershell
 uv sync --all-packages     # 根是 virtual workspace；缺这个 flag 装不到成员依赖
-uv run pytest              # 270 个用例：269 passed + 1 skipped（慢测默认跳过）
+uv run pytest              # 273 个用例：272 passed + 1 skipped（慢测默认跳过）
 uv run ruff check .
 
 # 数据适配层：任务包 → ta1（零依赖加载 + frame 校验）

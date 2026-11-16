@@ -1,0 +1,129 @@
+// ta1（task_allocation1）全量配置示例 —— 阅读版
+// 说明：
+// 1. 这是 JSONC，允许 `//` 注释；机器加载请用同目录的 ta1_full_config.example.json。
+// 2. 三段分别喂给 `SolverConfig.from_dict` / `ProblemConfig.from_dict` / `CostConfig.from_dict`；
+//    未写的键走默认（见 contract/defaults.py），未知键忽略、不报错。
+// 3. 本文件里的值全部等于代码默认值：拿它当"默认口径清单"用，改哪个键就把哪个值改掉。
+// 4. 走任务包（data/missions/<id>/mission.json）时，同名的 `solver` / `problem` / `cost` 段等价，
+//    由 `scene_io.to_ta1_request()` 自动装配；本文件用于直接调 `ta1.allocate()` 的服务端。
+// 5. ta1 是纯计算库：配置只进内存，不读文件。JSON 由你读、你传。
+
+{
+  // ===== 搜索预算（DMDE）与选机 =====
+  "solver": {
+    // 默认 50；种群规模。调大更稳、更慢，与 max_generations 一起决定总评价次数
+    "pop_size": 50,
+    // 默认 200；迭代代数
+    "max_generations": 200,
+    // 默认 3；动态交叉率 CR 的曲率指数（论文式 3-9）
+    "zeta": 3,
+    // 默认 null；GMR 灭绝阈值（式 3-12）。null = 原式 GMR = 1 - CR
+    "extinction_delta": null,
+    // 默认 0；随机种子。单通道 np.random.default_rng(seed)，同种子逐位可复现
+    "seed": 0,
+    // 默认 "demand"；参与机策略：cheapest / first / marginal / demand
+    "participating_policy": "demand",
+    // 默认 0.5；demand 策略把"续航能覆盖任务"的半径取 remaining_range × 该值
+    "demand_range_factor": 0.5,
+    // 保留键（当前不参与计算，写上不报错也无效果）
+    "demand_serve_margin": 0.95,
+    // 默认 null；参与机数上限。null = 不截断；设了就按策略排序取前 N
+    "max_participating_uavs": null,
+    // 默认 6；解码修复链最多几轮
+    "repair_max_passes": 6,
+    // 保留键（当前不参与计算）
+    "coverage_first": true,
+    // 默认 true；交付后局部优化（跨机 relocate/swap + 组内 2-opt，四道门）总开关
+    "polish_enabled": true,
+    // 默认 30；局部优化轮数
+    "polish_rounds": 30,
+    // 默认 1e-6；目标值改善小于它就提前停
+    "polish_eps": 1e-6,
+    // 默认 1.0（米）；航程改善小于它就不算"变好"
+    "cost_polish_eps": 1.0,
+    // 默认 0.4；反映射里的改派扰动幅度
+    "assign_perturb_factor": 0.4,
+    // 默认 0.5；反映射里的组内重排扰动幅度
+    "tour_perturb_factor": 0.5,
+    // 默认 0.1；扰动温度门限，低于它不再扰动
+    "perturb_temp_gate": 0.1
+  },
+
+  // ===== 评价口径（四层适应度 + 约束开关）=====
+  "problem": {
+    // 保留键（当前不参与计算）
+    "allow_unassigned": true,
+    // 保留键（当前不参与计算）
+    "allow_idle_uav": true,
+    // 默认 1.0；惩罚权重，只在 w_violation 为 null 时用于派生迟到权重
+    "w_penalty": 1.0,
+    // 默认 0.01（每秒）；迟到软计价。改大 = 更怕迟到
+    "w_violation": 0.01,
+    // 默认 null；硬违约单次权重。null = κ × bigM × Σreward（自动，随实例放大）
+    "w_hard_violation": null,
+    // 默认 null；每米超程权重。null = 1/bigM，语义是"1 米超程 < 1 个最小任务奖励"
+    "w_range_excess": null,
+    // 默认 10.0；硬违约系数 κ（w_hard_violation 为 null 时生效）
+    "hard_violation_kappa": 10.0,
+
+    // 每类约束的独立开关与惩罚权重；false = 该类违约不计入适应度
+    // 注意：home_return（终点恒=起飞巢）不在配置里，恒开、不可关
+    "constraints": {
+      "duplicate_task": true,        // 同一任务被两架机重复执行
+      "require_all_tasks": true,     // 任务必须被谁执行（覆盖门禁）
+      "require_no_idle": true,       // 有可用机却完全不出动
+      "range": true,
+      "endurance": true,
+      "time_window": true,           // latest 截止
+      "sequence": true,              // earliest 前到会等，不算违约
+      "sync": true,
+      "nest_capacity": true,         // 巢归属机数超 capacity
+      "nest_availability": true,     // available=false 的巢
+      "end_nest_reachability": true,
+      "w_misc": 1.0,
+      "w_range": 1.0,
+      "w_endurance": 1.0,
+      "w_window": 1.0,
+      "w_seq": 1.0,
+      "w_sync": 1.0,
+      "w_nest_capacity": 1.0,
+      "w_nest_availability": 1.0,
+      "w_end_nest_reachability": 1.0
+    },
+
+    // 默认 0.1；适应度里航程的权重（λ·航程），主要起 tie-break 作用，排序主判据仍是完成与违约
+    "lambda_cost": 0.1,
+    // 默认 null；覆盖奖励的 big-M。null = 自动推导（≥1，随实例规模放大）
+    "big_m": null,
+    // 默认 0.0（秒）；每个任务的服务时长，影响到达/迟到与 ETA
+    "default_service_time": 0.0,
+    // 保留键（当前不参与计算）
+    "late_reward_decay_seconds": null,
+    // 保留键（覆盖审计目前恒执行，这个开关未接到 core）
+    "coverage_audit": true,
+    // 默认 null；跳过任务的权重。null = 与 hard_weight 同量级
+    "w_skip_violation": null,
+    // 默认 0.0（秒）；规划起始时刻。AllocateRequest.current_time 非 null 时以后者为准
+    "current_time": 0.0
+  },
+
+  // ===== 距离代价口径（分配阶段自己的代理尺子）=====
+  "cost": {
+    // 默认 "euclid3d"；可选 "vertical_section"（沿 S-T 采剖面、按飞行带与包络做地形跟随）
+    "model": "euclid3d",
+    // 默认 10.0 / 120.0 m；飞行带（真高，相对该点地面）。
+    // 每点下限 floor = max(地面+agl_min_m, 包络顶+clearance_m)，上限 ceil = 地面+agl_max_m；
+    // floor > ceil 时怎么办由 over_band_mode 决定（默认 allow，agl_max 不硬生效）
+    "agl_min_m": 10.0,
+    "agl_max_m": 120.0,
+    // 默认 5.0 m；高于障碍包络（建筑屋顶）的最小竖直净空
+    "clearance_m": 5.0,
+    // 默认 0.15；下降斜率上限（米/米水平）。坡越缓，同样的升高摊得越开、米数不同
+    "climb_rate": 0.15,
+    // 默认 200；切面采样点数。调大更贴近真值，代价是每次调用更慢
+    "num_samples": 200,
+    // 默认 "allow"；带内飞不过去时：allow = 照爬、只报米数；
+    // infeasible = 该腿记 inf（分配阶段直接当成不可行）
+    "over_band_mode": "allow"
+  }
+}

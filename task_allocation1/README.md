@@ -58,6 +58,8 @@ req = ta1.AllocateRequest(..., cost_config=cost,
 
 实测（广州 `demo_001`，同 seed）：欧氏 `path_m=4501.9` → 切面 `4517.4`（+0.34%），航次与交付不变，0.28 s → 0.31 s。
 
+整包配置示例：`../docs/ta1_full_config.example.json`（`solver` / `problem` / `cost` 三段，值等于代码默认；同目录 `.jsonc` 是带注释的阅读版），`tests/test_ta1_config_example.py` 守住示例与默认值不漂移。
+
 ## 2. 同巢起降如何落地
 
 | 层 | 做法 |
@@ -117,7 +119,7 @@ src/task_allocation1/
 
 ```powershell
 # 仓库根 E:\06project-for-uav，venv 在 .venv
-& ".\.venv\Scripts\python.exe" -m pytest task_allocation1\tests --no-header -q   # 44 passed
+& ".\.venv\Scripts\python.exe" -m pytest task_allocation1\tests --no-header -q   # 47 passed
 & ".\.venv\Scripts\ruff.exe" check task_allocation1                              # All checks passed
 # 以可编辑模式安装后即可从任意目录 import：
 uv pip install -e task_allocation1
