@@ -1,0 +1,26 @@
+[project]
+name = "uav-scene-io"
+version = "0.2.0"
+description = "scene_io：世界/任务数据适配层。零运行时依赖（仅标准库），不 import ta1 / pp1；连接靠数据契约与注入"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+# 刻意留空：本包只依赖标准库。算法库各自独立，谁都不被这里绑住。
+dependencies = []
+
+[project.optional-dependencies]
+# 可选桥接：装了才用得到 to_ta1_request() / to_pp1_world_kwargs() 里的懒加载。
+ta1 = ["uav-task-allocation1"]
+pp1 = ["uav-path-planning1"]
+
+# 两个算法库是 workspace 成员：uv 要求显式声明来源。它们只出现在上面的**可选**组里，
+# 不是硬依赖——本包的运行时依赖依然是空。
+[tool.uv.sources]
+uav-task-allocation1 = { workspace = true }
+uav-path-planning1 = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scene_io"]

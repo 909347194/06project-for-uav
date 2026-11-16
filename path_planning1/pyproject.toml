@@ -1,0 +1,27 @@
+[project]
+name = "uav-path-planning1"
+version = "0.4.0"
+description = "path_planning1：仅建筑约束、无风，RRT 初始化 + 连续轨迹优化（最短飞行时间）"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "numpy>=1.26",        # 唯一必须的计算底子：栅格、SDF 插值、路径运算
+    "scipy>=1.11",        # ndimage: 两遍 EDT（SDF）、地形双线性插值
+    "pillow>=10.0",       # 只用来读 GeoTIFF 标签 33550/33922/42113（不装 GDAL）
+    "shapely>=2.0",       # 建筑 footprint 几何、棱柱真几何净空
+    "pyshp>=2.3",         # 读 .shp/.dbf（GBK 属性表）
+]
+
+[project.optional-dependencies]
+# casadi 是时间域轨迹层（NLP）的求解器，不进运行时依赖：
+# 只要几何路径（折线）的调用方用不着它，装了等于白背 ~60 MB。
+nlp = ["casadi>=3.6"]
+# 本包是纯计算库：没有 service extra。HTTP / 缓存 / 进程池 / 超时由上层服务自己装，
+# Web 框架不进这个发行包的依赖。
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/path_planning1"]

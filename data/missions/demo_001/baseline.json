@@ -1,0 +1,24 @@
+{
+  "note": "回归基线：默认欧氏距离、seed=0 下应复现的指标。改了数据/世界/参数就必须重算。",
+  "world_id": "guangzhou",
+  "frame_hash": "59ccbad38a06",
+  "dataset_digest": "d60b50223a62",
+  "distance": "euclidean3d",
+  "solver": {
+    "pop_size": 24,
+    "max_generations": 60,
+    "seed": 0
+  },
+  "expect": {
+    "feasible": true,
+    "home_return_ok": true,
+    "n_executed": 3,
+    "n_participating": 2,
+    "f1_reward": 3.5,
+    "path_m": 4501.944743,
+    "return_leg_m": 1456.536412
+  },
+  "tolerance": {
+    "abs": 1e-06
+  }
+}

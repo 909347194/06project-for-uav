@@ -1,0 +1,112 @@
+"""配置：约束开关（ConstraintConfig）、问题/评价权重（ProblemConfig）、求解预算（SolverConfig）。
+
+只放数据类与 ``from_dict``（缺省即默认、未知键忽略）；不实现任何算法、不读文件。
+默认值唯一来源见 ``defaults.py``，本文件引用而不复制。
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any
+
+from . import defaults as D
+
+
+@dataclass
+class ConstraintConfig:
+    """每类约束独立开关与惩罚权重（对齐论文 §5(4)）。
+
+    ``home_return`` 是本库新增的硬约束：终点机巢必须等于起飞机巢；恒开，
+    不允许通过配置关闭（同巢起降是唯一口径）。
+    """
+
+    duplicate_task: bool = True
+    require_all_tasks: bool = True
+    require_no_idle: bool = True
+    range: bool = True
+    endurance: bool = True
+    time_window: bool = True
+    sequence: bool = True
+    sync: bool = True
+    nest_capacity: bool = True
+    nest_availability: bool = True
+    end_nest_reachability: bool = True
+
+    w_misc: float = 1.0
+    w_range: float = 1.0
+    w_endurance: float = 1.0
+    w_window: float = 1.0
+    w_seq: float = 1.0
+    w_sync: float = 1.0
+    w_nest_capacity: float = 1.0
+    w_nest_availability: float = 1.0
+    w_end_nest_reachability: float = 1.0
+
+    @property
+    def home_return(self) -> bool:
+        """同巢起降硬约束（只可读；恒 True，不提供关闭入口）。"""
+        return True
+
+    @classmethod
+    def from_dict(cls, d: Mapping[str, Any] | None) -> ConstraintConfig:
+        known = set(cls.__dataclass_fields__)
+        return cls(**{k: v for k, v in dict(d or {}).items() if k in known})
+
+
+@dataclass
+class ProblemConfig:
+    """模型开关与四层适应度权重。"""
+
+    allow_unassigned: bool = True
+    allow_idle_uav: bool = True
+    w_penalty: float = D.DEFAULT_W_PENALTY
+    w_violation: float | None = D.DEFAULT_W_VIOLATION
+    w_hard_violation: float | None = None
+    w_range_excess: float | None = None
+    hard_violation_kappa: float = D.DEFAULT_HARD_VIOLATION_KAPPA
+    constraints: ConstraintConfig = field(default_factory=ConstraintConfig)
+    lambda_cost: float = D.DEFAULT_LAMBDA_COST
+    big_m: float | None = None
+    default_service_time: float = D.DEFAULT_DEFAULT_SERVICE_TIME
+    late_reward_decay_seconds: float | None = None
+    coverage_audit: bool = True
+    w_skip_violation: float | None = None
+    current_time: float = D.DEFAULT_CURRENT_TIME
+
+    @classmethod
+    def from_dict(cls, d: Mapping[str, Any] | None) -> ProblemConfig:
+        src = dict(d or {})
+        if isinstance(src.get("constraints"), Mapping):
+            src["constraints"] = ConstraintConfig.from_dict(src["constraints"])
+        known = set(cls.__dataclass_fields__)
+        return cls(**{k: v for k, v in src.items() if k in known})
+
+
+@dataclass
+class SolverConfig:
+    """求解预算与开关：选机 / DMDE / 修复链 / 交付后 polish。"""
+
+    pop_size: int = D.DEFAULT_POP_SIZE
+    max_generations: int = D.DEFAULT_MAX_GENERATIONS
+    zeta: int = D.DEFAULT_ZETA
+    extinction_delta: float | None = D.DEFAULT_EXTINCTION_DELTA
+    seed: int | None = D.DEFAULT_SEED
+    participating_policy: str = D.DEFAULT_PARTICIPATING_POLICY
+    demand_range_factor: float = D.DEFAULT_DEMAND_RANGE_FACTOR
+    demand_serve_margin: float = D.DEFAULT_DEMAND_SERVE_MARGIN
+    max_participating_uavs: int | None = None
+    repair_max_passes: int = D.DEFAULT_REPAIR_MAX_PASSES
+    coverage_first: bool = True
+    polish_enabled: bool = True
+    polish_rounds: int = D.DEFAULT_POLISH_ROUNDS
+    polish_eps: float = D.DEFAULT_POLISH_EPS
+    cost_polish_eps: float = D.DEFAULT_COST_POLISH_EPS
+    assign_perturb_factor: float = D.DEFAULT_ASSIGN_PERTURB_FACTOR
+    tour_perturb_factor: float = D.DEFAULT_TOUR_PERTURB_FACTOR
+    perturb_temp_gate: float = D.DEFAULT_PERTURB_TEMP_GATE
+
+    @classmethod
+    def from_dict(cls, d: Mapping[str, Any] | None) -> SolverConfig:
+        known = set(cls.__dataclass_fields__)
+        return cls(**{k: v for k, v in dict(d or {}).items() if k in known})

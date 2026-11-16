@@ -1,0 +1,24 @@
+[
+  {
+    "id": 0,
+    "nest_id": 0,
+    "lon": 113.291092884,
+    "lat": 23.073499711,
+    "z_abs": 8.0,
+    "speed": 15.0,
+    "remaining_range": 18000.0,
+    "max_time": 2400.0,
+    "status": "IDLE"
+  },
+  {
+    "id": 1,
+    "nest_id": 1,
+    "lon": 113.320390272,
+    "lat": 23.07802157,
+    "z_abs": 7.66,
+    "speed": 15.0,
+    "remaining_range": 18000.0,
+    "max_time": 2400.0,
+    "status": "IDLE"
+  }
+]

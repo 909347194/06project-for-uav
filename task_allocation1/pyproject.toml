@@ -1,0 +1,20 @@
+[project]
+name = "uav-task-allocation1"
+version = "0.1.0"
+description = "task_allocation1：多机巢多无人机协同任务分配纯计算内核（同巢起降：从哪个巢起飞就返回哪个巢）"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "numpy>=1.26",        # DE 种群矩阵 / 代价矩阵唯一计算底子
+]
+
+[project.optional-dependencies]
+# 本包是纯计算库：无服务壳、无 DEM/文件 I/O、无 Web 框架依赖。
+# 距离口径由调用方注入 distance_fn；需要真实地形航程时在上游服务层算好再注入。
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/task_allocation1"]

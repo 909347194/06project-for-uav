@@ -1,0 +1,20 @@
+[
+  {
+    "id": 0,
+    "name": "nest_0",
+    "lon": 113.291092884,
+    "lat": 23.073499711,
+    "z_abs": 8.0,
+    "capacity": 4,
+    "available": true
+  },
+  {
+    "id": 1,
+    "name": "nest_1",
+    "lon": 113.320390272,
+    "lat": 23.07802157,
+    "z_abs": 7.66,
+    "capacity": 4,
+    "available": true
+  }
+]

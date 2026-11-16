@@ -1,0 +1,35 @@
+[project]
+name = "uav-planning-workspace"
+version = "0.1.0"
+description = "多无人机协同：task_allocation + 两套彼此独立的路径规划封装（uv workspace 根）"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+
+# 根工程是 virtual workspace：只做依赖与命令的统一入口，不打包、不放源码。
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "path_planning1",
+    "path_planning2",
+    "task_allocation1",
+    "scene_io",          # 数据适配层：世界/任务包 → 库输入（不含算法）
+    # "task_allocation",   # 参考项目（ExperimentForGraduation），仅作来源不接入 workspace
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.6",
+    "matplotlib>=3.8",   # 仅 experiments/ 下的 OD 试跑出图用，不进任何算法包依赖
+    "plotly>=5.20",      # 仅 experiments/ 下的 3D 交互式路线页用，同上不进算法包
+]
+
+[tool.pytest.ini_options]
+testpaths = ["path_planning1/tests", "path_planning2/tests", "task_allocation1/tests", "scene_io/tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

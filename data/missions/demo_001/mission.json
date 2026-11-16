@@ -1,0 +1,16 @@
+{
+  "mission_id": "demo_001",
+  "label": "同巢起降最小样例：2 巢 / 2 机 / 3 任务",
+  "schema": 1,
+  "world_id": "guangzhou",
+  "frame_hash": "59ccbad38a06",
+  "current_time": 0.0,
+  "time_base": "relative_s",
+  "z_basis": "absolute_enu_z",
+  "note": "经纬度为真源，ENU 由 world.frame 派生；z_abs 是绝对高程（任务点 = 地面 + 40 m）。",
+  "solver": {
+    "pop_size": 24,
+    "max_generations": 60,
+    "seed": 0
+  }
+}

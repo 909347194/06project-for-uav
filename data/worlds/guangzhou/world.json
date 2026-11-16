@@ -1,0 +1,48 @@
+{
+  "world_id": "guangzhou",
+  "label": "广州样例（琶洲一带，约 4.8 km × 4.8 km）",
+  "schema": 1,
+  "frame": {
+    "lon0": 113.2910928837698,
+    "lat0": 23.073499711374893,
+    "lat_ref": 23.095175858945964,
+    "frame_hash": "59ccbad38a06",
+    "note": "局地切平面：x=(lon-lon0)·111320·cos(lat_ref)，y=(lat-lat0)·110574；frame 由 region.geojson 的 bbox 左下角 + 中心纬度决定"
+  },
+  "elevation": {
+    "basis": "absolute_enu_z",
+    "dem": "dem.tif",
+    "unit": "m",
+    "note": "库内一律绝对高程；AGL 只在 pp1 请求入口出现"
+  },
+  "crs": "EPSG:4326",
+  "dataset_digest": "d60b50223a62",
+  "contents": {
+    "region": "region.geojson",
+    "buildings": "building/",
+    "dem": "dem.tif",
+    "nofly": null
+  },
+  "stats": {
+    "n_buildings_loaded": 20655,
+    "bounds_m": [
+      0.0,
+      0.0,
+      4845.9,
+      4793.6
+    ],
+    "diag_m": 6816.3,
+    "dem_shape": [
+      157,
+      172
+    ],
+    "dem_z_range_m": [
+      2.0,
+      75.0
+    ],
+    "height_range_m": [
+      1.2,
+      224.5
+    ]
+  }
+}
