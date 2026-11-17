@@ -28,7 +28,11 @@ def _scenario(seed: int = 0):
         ta1.Nest(id=2, x=0, y=700, capacity=5),
     ]
     cfg = ta1.SolverConfig(pop_size=10, max_generations=8, seed=seed)
-    return ta1.AllocateRequest(tasks=tasks, uavs=uavs, nests=nests, solver_config=cfg)
+    return ta1.AllocateRequest(
+        tasks=tasks, uavs=uavs, nests=nests,
+        cost_config=ta1.CostConfig(model="euclid3d"),  # 平坦合成场景：显式欧氏
+        solver_config=cfg,
+    )
 
 
 def test_from_uav_default_end_nest_is_home() -> None:
@@ -69,7 +73,8 @@ def test_foreign_end_nest_is_hard_violation() -> None:
 
 
 def test_empty_scenario_preserves_invariant() -> None:
-    req = ta1.AllocateRequest(tasks=[], solver_config=ta1.SolverConfig(seed=0))
+    req = ta1.AllocateRequest(tasks=[], cost_config=ta1.CostConfig(model="euclid3d"),
+                              solver_config=ta1.SolverConfig(seed=0))
     res = ta1.allocate(req)
     assert res.solution.home_return_ok()
     assert res.model_type == ta1.ModelType.EMPTY

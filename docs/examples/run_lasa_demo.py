@@ -64,9 +64,14 @@ def load_scene():
 
 
 # ---------------------------------------------------------------- ② ta1
-def allocate(mission):
+def allocate(mission, world):
     section("② ta1.allocate() —— 谁飞、什么顺序、回哪个巢")
     req = scene_io.to_ta1_request(mission)          # 距离口径走 mission.json 的 cost 段
+    if req.cost_config.model == "vertical_section" and req.ground_z is None:
+        # 默认口径是垂直切面：地面高程 + 建筑屋顶包络由 scene_io 从世界现造（懒加载 pp1）
+        ground_z, obstacle_top_z = scene_io.to_ta1_cost_samplers(world)
+        req = scene_io.to_ta1_request(mission, ground_z=ground_z,
+                                      obstacle_top_z=obstacle_top_z)
     t0 = time.perf_counter()
     res = ta1.allocate(req)
     dt = time.perf_counter() - t0
@@ -204,7 +209,7 @@ def main() -> int:
     args = ap.parse_args()
 
     world, mission = load_scene()
-    res = allocate(mission)
+    res = allocate(mission, world)
     segs = expand_tours(res, mission)
     print(f"\n展开为 {len(segs)} 条空中航段（起降垂直段不在其中）")
     for s in segs:

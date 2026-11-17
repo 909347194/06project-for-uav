@@ -116,7 +116,7 @@ def test_nofly_slot_exists_but_is_empty() -> None:
 
 
 def test_interop_fixture_is_consumable() -> None:
-    """两包共用同一份航段夹具：本包必须能无歧义地读成 PlanRequest。"""
+    """同一份航段夹具：本包必须能无歧义地读成 PlanRequest。"""
     raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
     req = PlanRequest(
         world_id=raw["world_id"],

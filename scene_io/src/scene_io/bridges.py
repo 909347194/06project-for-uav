@@ -44,9 +44,10 @@ def to_ta1_request(
 ):
     """任务包 → ``ta1.AllocateRequest``（懒 import ta1）。
 
-    ``distance_fn`` 是 ta1 的底层注入点；不传则按 ``cost_config`` 解析（默认三维欧氏）。
+    ``distance_fn`` 是 ta1 的底层注入点；不传则按 ``cost_config`` 解析（默认垂直切面）。
     ``cost_config`` / ``ground_z`` / ``obstacle_top_z`` 用于 ``model="vertical_section"``：
-    前两个采样器由 :func:`to_ta1_cost_samplers` 从世界现造。
+    前两个采样器由 :func:`to_ta1_cost_samplers` 从世界现造；默认口径下至少给一个，
+    否则 ta1 直接报错。无地形数据请显式传 ``ta1.CostConfig(model="euclid3d")``。
     ``solver_config`` / ``problem_config`` 不传时用任务包 ``mission.json`` 里的
     ``solver`` / ``problem`` 段。
     """

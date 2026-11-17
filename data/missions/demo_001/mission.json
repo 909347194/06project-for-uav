@@ -12,5 +12,8 @@
     "pop_size": 24,
     "max_generations": 60,
     "seed": 0
+  },
+  "cost": {
+    "model": "euclid3d"
   }
 }

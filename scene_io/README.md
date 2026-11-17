@@ -50,19 +50,19 @@ print(m.tasks[0].x, m.tasks[0].y)     # 已换算成 ENU 米（纯 float，不�
 
 ```python
 import task_allocation1 as ta1
+# demo_001 任务包显式固定 euclid3d，可直接分配；不写 cost 段时默认是垂直切面
 res = ta1.allocate(scene_io.to_ta1_request(m))
 ```
 
-ta1 想用**垂直切面尺子**时，两个采样器也从世界现造（懒加载 pp1 + shapely）：
+ta1 的**默认口径就是垂直切面**，两个采样器从世界现造（懒加载 pp1 + shapely）：
 
 ```python
-cost = ta1.CostConfig(model="vertical_section", agl_min_m=10, agl_max_m=120, clearance_m=5)
 ground_z, obstacle_top_z = scene_io.to_ta1_cost_samplers(world)   # 约 3.5 s 一次性建好
-res = ta1.allocate(scene_io.to_ta1_request(m, cost_config=cost,
-                                           ground_z=ground_z, obstacle_top_z=obstacle_top_z))
+res = ta1.allocate(scene_io.to_ta1_request(m, ground_z=ground_z,
+                                           obstacle_top_z=obstacle_top_z))
 ```
 
-`mission.json` 里写 `"cost": {"model": "vertical_section", ...}` 时，`to_ta1_request` 会自动带上配置，采样器仍需调用方传。
+`mission.json` 的 `cost` 段可改参数（不写即默认 `vertical_section`）；采样器仍需调用方传，缺了直接报错，无地形数据显式 `cost_config=ta1.CostConfig(model="euclid3d")`。
 
 接 **pp1**（`to_pp1_world_kwargs` 只回一个 dict，**不需要 import pp1**）：
 

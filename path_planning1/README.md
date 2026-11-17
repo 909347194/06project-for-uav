@@ -35,7 +35,7 @@
 * 禁飞区文件内容进 `ctx.dataset_digest`：禁飞区一改，旧场产物启动即判过期；
 * `world.nofly_path` 可显式指定文件（默认 `nofly.geojson`，文件可没有；显式配置不存在则报错）。
 
-后端接入清单见 `docs/2怎么用-pp1算法.md` §4 / §6。
+后端接入清单见 `docs/2怎么用-pp1算法.md` §4–§6。
 
 ## 0. 一页速览
 
@@ -169,7 +169,7 @@ core/       算法（只依赖 contract）            数据 → 全域场 → �
 
 端点只有一种高度口径：**绝对 z**。核心入口 `plan_route_segment(buildings, frame, dem, start_xy, goal_xy, start_z_m, ..., goal_z_m=..., world_field=...)`，库内在入口处用 DEM 求两端地面（`dem=None` 时按 0），得到真高去判飞行带；`core/route_segment_xyz.plan_route_segment_xyz(...)` 只是 `(x,y,z)` 三元组的薄封装（校验后原样传 z），不在 `pp1.__all__`、也不在 `ctx` 上。`world_field=None` 或窗口越界时按窗口现算。端点 z 低于地面 → 真高为负 → `out_of_flight_band`，不会静默抬高。
 失败是结果不是异常：`status` 实际只出现 `ok / infeasible`（`Status` 枚举另有 `timeout` / `invalid_input` / `internal_error` 三个预留值，本包不返回），细节看 9 个会真的返回的 `failure_code`（`none` / `outside_world` / `od_too_long` / `out_of_flight_band` / `start_or_goal_blocked` / `endpoint_in_nofly` / `rrt_no_path` / `roi_no_path` / `path_clearance_violated`）。
-字段逐项、失败映射、HTTP 建议、批量与并发：**`../docs/2怎么用-pp1算法.md` §7–§9**（本文不重复）。
+字段逐项、失败映射、HTTP 建议、批量与并发：**`../docs/2怎么用-pp1算法.md` §4–§6**（本文不重复）。
 
 `params_hash`（`core/params_fingerprint.py`）是缓存键的唯一来源：`planner + vehicle + roi + spacing + agl 带 + seed + 净空查询半径` → 12 位 sha1；两端绝对 z 与 `world_id` 属请求/世界，需额外拼进键。
 
@@ -213,7 +213,7 @@ src/path_planning1/
     └─ request_check.py          入参自检（NaN/零间距 → ValueError）+ 机型可行性（0 秒拒绝）
 ```
 
-`tests/`：布局守卫、默认值守卫、配置、建场契约（`test_pp1_field_contract.py`）、启动上下文（`test_pp1_context.py`）、约束（推力/走廊）、净空独立复核、绑定、core 冒烟。共 172 项（pp2 另 11 项），含 `test_pp1_public_api.py` 顶层门面守卫、`test_pp1_coord_guard.py` 坐标格式自检、`test_pp1_nofly.py` 禁飞区、
+`tests/`：布局守卫、默认值守卫、配置、建场契约（`test_pp1_field_contract.py`）、启动上下文（`test_pp1_context.py`）、约束（推力/走廊）、净空独立复核、绑定、core 冒烟。共 205 项，含 `test_pp1_public_api.py` 顶层门面守卫、`test_pp1_coord_guard.py` 坐标格式自检、`test_pp1_nofly.py` 禁飞区、
 `test_pp1_dataset_identity.py` / `test_pp1_field_artifact.py` 与默认跳过的 `test_pp1_slow_integration.py`。
 
 ## 7. 实测基线
@@ -273,9 +273,9 @@ src/path_planning1/
 ## 9. 测试与复现
 
 ```powershell
-# 开发环境：仓库根 E:\06project-for-uav，venv 在 .venv（用 uv 的话先 uv sync --all-packages）
-& ".\.venv\Scripts\ruff.exe" check path_planning1 path_planning2
-& ".\.venv\Scripts\python.exe" -m pytest path_planning1\tests path_planning2\tests --no-header -q
+# 开发环境：仓库根，venv 在 .venv（用 uv 的话先 uv sync --all-packages）
+& ".\.venv\Scripts\ruff.exe" check path_planning1
+& ".\.venv\Scripts\python.exe" -m pytest path_planning1\tests --no-header -q
 $env:PP1_SLOW_TESTS="1"; & ".\.venv\Scripts\python.exe" -m pytest path_planning1\tests\test_pp1_slow_integration.py -q   # 真数据端到端（约 2.5 min）
 ```
 
@@ -284,7 +284,7 @@ $env:PP1_SLOW_TESTS="1"; & ".\.venv\Scripts\python.exe" -m pytest path_planning1
 ```python
 import json, pathlib, path_planning1 as pp1
 
-ROOT = pathlib.Path(r"E:\06project-for-uav")
+ROOT = pathlib.Path.cwd()          # 在仓库根执行
 cfg = json.loads((ROOT / "docs/pp1_full_config.example.json").read_text(encoding="utf-8"))
 cfg["world"]["root"] = str(ROOT / "data/worlds/guangzhou")
 

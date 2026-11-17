@@ -15,6 +15,6 @@
     "default_service_time": 30.0
   },
   "cost": {
-    "model": "euclid3d"
+    "model": "vertical_section"
   }
 }

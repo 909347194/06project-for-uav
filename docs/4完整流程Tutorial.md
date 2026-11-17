@@ -14,13 +14,12 @@
 
 ## 1. 项目结构：每个包、每个目录是干什么的
 
-### 1.1 四个包
+### 1.1 三个包
 
 ```text
 /
 ├─ task_allocation1/     【ta1】分配层：谁飞、什么顺序、回哪个巢
 ├─ path_planning1/       【pp1】落地层：这一条航段到底怎么飞（航迹 + 时长 + 净空）
-├─ path_planning2/       【pp2】M0 骨架，算法未实现，**不参与主链路**
 └─ scene_io/             数据适配层：世界 / 任务包 → 纯数据（零依赖）
 ```
 
@@ -28,7 +27,6 @@
 |---|---|---|---|
 | `task_allocation1` (ta1) | **谁飞 / 什么顺序 / 回哪个巢** | 只要 `numpy` | 纯计算，**不读文件、不联网**；同巢起降（终点恒=起飞巢） |
 | `path_planning1` (pp1) | **这一条航段怎么飞** | `numpy scipy pillow shapely pyshp`（+ 可选 `casadi`） | 读世界目录；RRT + CasADi/IPOPT，目标是**最短飞行时间** |
-| `path_planning2` (pp2) | （规划中的第二套算法） | — | M0 骨架，仅契约落地，**别用** |
 | `scene_io` | **数据怎么落到磁盘、怎么读进来** | **无**（纯标准库） | 不 import ta1/pp1；对接靠数据契约 + 懒加载桥 |
 
 **三件事先记住**（后面所有内容都建立在这三条上）：
@@ -58,16 +56,16 @@
 │  │     ├─ mission.json                 # world_id + frame_hash + current_time + 配置
 │  │     ├─ nests.json / uavs.json / tasks.json
 │  │     └─ baseline.json                # 可选：回归基线
-│  └─ contracts/                         # 两库互操作夹具（契约漂移测试用，不是业务数据）
+│  └─ contracts/                         # 航段请求夹具（pp1 契约漂移测试用，不是业务数据）
 │
 ├─ artifacts/                            # 不进版本库：建场产物（跟着世界走）
 │  └─ lasa_chengguan/default/            # sdf.npy + occupancy.npy + meta.json
 ├─ results/                              # 不进版本库：你的输出
 │  └─ lasa_chengguan/lasa_demo_001/      # run_001.json
 │
-├─ docs/                                 # 0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 本篇
+├─ docs/                                 # 0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 本篇 → 5 交付说明
 │  └─ examples/run_lasa_demo.py          # 本教程的可执行配套
-└─ (四个包目录)
+└─ (三个包目录)
 ```
 
 **四条归属规则**：世界目录名 = `world_id`；任务包只**引用**世界不复制世界；场产物跟世界走
@@ -104,7 +102,7 @@ ta1 ◄────────── 互不 import ─────────�
 ```bash
 cd /
 uv sync --all-packages        # ← 这个 flag 不能省，根是 virtual workspace
-uv run pytest                 # 280 个用例
+uv run pytest                 # 269 个用例
 uv run ruff check .           # 代码风格
 ```
 
@@ -134,7 +132,7 @@ pip install pytest ruff                    # 开发期才需要
 
 | 装法 | 得到什么 | 什么时候用 |
 |---|---|---|
-| 只装 `task_allocation1` | 只能分配，米数走欧氏/垂直切面 | 只要"谁飞" |
+| 只装 `task_allocation1` | 只能分配，米数走垂直切面（默认，需采样器）/ 欧氏 | 只要"谁飞" |
 | `path_planning1` | 几何层完整（折线 + 真几何净空） | 只要"能不能飞、多远" |
 | `path_planning1[nlp]` | + 时间域轨迹（`duration_s` / 速度 / 推力） | **要时长就必须装**，否则 `trajectory` 恒为 `None` |
 
@@ -154,7 +152,7 @@ python -m pytest -q
 0.2.0 ta1-dmde-home-nest
 0.4.0 pp1-rrt-nlp-time
 0.2.0
-280 个用例：277 passed + 3 skipped（1 个慢测 + 2 个需 guangzhou shp 夹具）
+269 个用例：266 passed + 3 skipped（1 个慢测 + 2 个需 guangzhou shp 夹具）
 ```
 
 > **新 clone 会有 3 个测试跳过**：`scene_io/tests/test_scene_io_contract.py` 的两条对拍用例需要
@@ -231,7 +229,7 @@ pp1 的配置**每一项都生效**（有 `test_pp1_defaults.py` 逐项守）。
 | 城市 | 拉萨市城关区（核心建成区） |
 | 经纬度范围 | `lon 91.136 – 91.172`，`lat 29.650 – 29.672` |
 | 换算后 | **3482.4 m × 2432.6 m**，对角线 4248 m |
-| 高程基准 | 拉萨河谷 **~3650 m**（DEM 实测 3650.0 – 3674.6 m） |
+| 高程基准 | 拉萨河谷 **~3650 m**（DEM 实测 3650.0 – 3674.5 m） |
 | frame 锚点 | bbox **左下角** `(91.136, 29.650)` |
 | `lat_ref` | bbox 中心纬度 `29.661` |
 
@@ -336,7 +334,7 @@ ogrinfo -al -so building/lasa_residential.shp        # 复核字段名与坐标�
 | 单位 | 米 | ✓ |
 | 分辨率 | 城市低空建议 5–30 m | ~15 m（233 × 163） |
 | 覆盖 | 必须盖住 `region bbox + field_pad` + **全部建筑** | ✓ |
-| 高程 | 与建筑 `base_z`、禁飞区绝对 `z` **同一基准** | 3650.0 – 3674.6 m |
+| 高程 | 与建筑 `base_z`、禁飞区绝对 `z` **同一基准** | 3650.0 – 3674.5 m |
 
 ```bash
 gdalwarp -t_srs EPSG:4326 -r bilinear in_dem_lasa.tif data/worlds/lasa_chengguan/dem.tif
@@ -393,7 +391,7 @@ gdalinfo data/worlds/lasa_chengguan/dem.tif          # 看 33550 / 33922 两个�
     "dem": "dem.tif",
     "nofly": "nofly.geojson"
   },
-  "dataset_digest": "e9cebbed678f"
+  "dataset_digest": "230fdd6bcc0a"
 }
 ```
 
@@ -409,7 +407,7 @@ gdalinfo data/worlds/lasa_chengguan/dem.tif          # 看 33550 / 33922 两个�
 ```python
 from path_planning1.core.dataset_identity import dataset_digest
 print(dataset_digest({"root": "data/worlds/lasa_chengguan", "with_dem": True}))
-# e9cebbed678f
+# 230fdd6bcc0a
 ```
 
 > 不要手写 `dataset_digest`，也不要自己拼 `world_id` 当缓存键。改了任何数据文件它都会变，
@@ -430,20 +428,20 @@ print(dataset_digest({"root": "data/worlds/lasa_chengguan", "with_dem": True}))
   "z_basis": "absolute_enu_z",
   "solver":  {"pop_size": 24, "max_generations": 60, "seed": 0},
   "problem": {"default_service_time": 30.0},
-  "cost":    {"model": "euclid3d"}
+  "cost":    {"model": "vertical_section"}
 }
 ```
 
 - `world_id` + `frame_hash` **双重绑定**：任务包不是用这个世界的 frame 算的，`load_mission` 直接报错；
 - `solver` / `problem` / `cost` 三段分别透传 `SolverConfig` / `ProblemConfig` / `CostConfig`；
-- 想用垂直切面尺子（考虑地形与建筑的航程估算）就把 `cost` 换成：
+- `cost` 段不写即默认 `vertical_section`（垂直切面）；显式写法与默认等价：
 
 ```json
 "cost": {"model": "vertical_section", "agl_min_m": 10, "agl_max_m": 120,
          "clearance_m": 5, "climb_rate": 0.15, "num_samples": 200}
 ```
 
-（此时 `to_ta1_request` 还要给两个采样器，见 §6.3。）
+（此时 `to_ta1_request` 必须给采样器，见 §6.3；无地形数据改 `{"model": "euclid3d"}`。）
 
 #### `nests.json` / `uavs.json` / `tasks.json`
 
@@ -557,7 +555,7 @@ print(m.summary())
 
 ```python
 print(scene_io.check_world_with_pp1(world))
-# {'frame_ok': True, 'digest_ok': True, 'frame_pp1': (...), 'digest_pp1': 'e9cebbed678f'}
+# {'frame_ok': True, 'digest_ok': True, 'frame_pp1': (...), 'digest_pp1': '230fdd6bcc0a'}
 ```
 
 它用 pp1 自己的实现复核 frame 与数据指纹。`scene_io` **不重复实现**这两个算法
@@ -585,9 +583,9 @@ print("dem:", ds.dem.z_m.shape, round(float(ds.dem.z_m.min()), 1),
 ```text
 buildings: 329
 bounds_m: [0.0, 0.0, 3482.4, 2432.6]
-diag_m: 4247.8
-height_m: 6.0 - 46.0
-dem: (163, 233) 3650.0 - 3674.6
+diag_m: 4247.9
+height_m: 6.0 - 45.6
+dem: (163, 233) 3650.0 - 3674.5
 ```
 
 **判读标准**：
@@ -622,7 +620,11 @@ import task_allocation1 as ta1
 world = scene_io.load_world("data/worlds/lasa_chengguan")
 m = scene_io.load_mission("data/missions/lasa_demo_001", world=world)
 
-res = ta1.allocate(scene_io.to_ta1_request(m))
+# 默认距离口径是垂直切面：地面高程 + 建筑屋顶包络由世界现造（懒加载 pp1）
+ground_z, obstacle_top_z = scene_io.to_ta1_cost_samplers(world)
+res = ta1.allocate(scene_io.to_ta1_request(
+    m, ground_z=ground_z, obstacle_top_z=obstacle_top_z,
+))
 print(res.home_return_ok, res.solution.feasible)
 for t in res.solution.tours:
     print(f"UAV {t.uav_id}: nest {t.start_nest_id} -> {t.task_ids} -> nest {t.end_nest_id}")
@@ -632,14 +634,14 @@ print(res.metrics_dict())
 实测输出（`seed=0`，同种子逐位可复现）：
 
 ```text
-耗时 1.15s   model=srp   n_evals=1464
+耗时 1.6s   model=srp   n_evals=1464
 home_return_ok = True   feasible = True
   UAV 0: nest 0 -> [102, 103, 101] -> nest 0   est_cost=3239.5 m  est_reward=3.2
   UAV 1: (闲置)
-  UAV 2: nest 1 -> [106, 105, 104] -> nest 1   est_cost=3168.2 m  est_reward=3.6
+  UAV 2: nest 1 -> [106, 105, 104] -> nest 1   est_cost=3171.6 m  est_reward=3.6
   UAV 3: (闲置)
 {'n_participating': 4, 'model_type': 'srp', 'n_evals': 1464, 'n_executed': 6,
- 'path_m': 6407.68, 'return_leg_m': 1033.92, 'f1_reward': 6.8, 'f2_cost': 6407.68,
+ 'path_m': 6411.15, 'return_leg_m': 1035.87, 'f1_reward': 6.8, 'f2_cost': 6411.15,
  'feasible': True, 'home_return_ok': True}
 ```
 
@@ -674,21 +676,21 @@ home_return_ok = True   feasible = True
 2. `feasible=False` + `n_hard>0` → 求解器**如实报出违约**（紧航程/紧时间窗常见），不是漏检；
 3. `model_type="empty"` → 无任务或无可用机。
 
-### 6.3 换成垂直切面尺子（考虑地形与建筑）
+### 6.3 距离尺子：默认垂直切面（无地形数据显式欧氏）
 
 ```python
 world = scene_io.load_world("data/worlds/lasa_chengguan")
 m = scene_io.load_mission("data/missions/lasa_demo_001", world=world)
 ground_z, obstacle_top_z = scene_io.to_ta1_cost_samplers(world)   # 约 3.5 s 建好
 
+# mission.json 的 cost 段是 vertical_section（= 默认口径），只需补采样器
 res = ta1.allocate(scene_io.to_ta1_request(
-    m,
-    cost_config=ta1.CostConfig(model="vertical_section",
-                               agl_min_m=10, agl_max_m=120,
-                               clearance_m=5, climb_rate=0.15),
-    ground_z=ground_z, obstacle_top_z=obstacle_top_z,
+    m, ground_z=ground_z, obstacle_top_z=obstacle_top_z,
 ))
 ```
+
+地形/建筑数据缺失时不会自动降级：显式传 `cost_config=ta1.CostConfig(model="euclid3d")`
+（或 `distance_fn=ta1.euclidean3d`），默认档缺采样器会直接报错。
 
 两档尺子的差别只在**有地形/建筑**时出现：楼越高、飞行带越低，爬升吃掉的水平距离越多。
 它仍只是**分配代理**（只沿连线竖直翻越、不横向绕行），交付口径永远是 pp1 的真航迹。
@@ -760,8 +762,8 @@ ctx = pp1.create_context(cfg)
 实测输出：
 
 ```text
-建场耗时 0.0s(装载) + 17.3s(建场)  field_source=built
-dataset_digest = e9cebbed678f
+建场耗时 0.0s(装载) + 17.7s(建场)  field_source=built
+dataset_digest = 230fdd6bcc0a
 bounds_m = [0.0, 0.0, 3482.4, 2432.6]  max_od_length_m = 1500  pad_m = 244
 全域场 shape=(994, 732, 70)  内存 255 MB
 ```
@@ -769,6 +771,9 @@ bounds_m = [0.0, 0.0, 3482.4, 2432.6]  max_od_length_m = 1500  pad_m = 244
 **"离线一次、在线只取"是结构保证**：`ctx.plan` 的签名里没有"不传场"的入口，
 调用方不可能忘记把场传下去。`create_context` 会做**建场契约自检**——
 契约允许的最坏 OD 的窗口必须落在场内，不够就**在启动阶段炸**，不留到请求期。
+
+> 秒数随机器浮动（本机 17–20 s）；`shape=(994, 732, 70)`、255 MB、`dataset_digest`
+> 是由数据与 `max_od_length_m` 决定的，不随机器变。
 
 > `field_mode` 两档：`startup`（默认，启动建一次）/ `on_demand`（每条请求窗口现算，
 > 低内存调试用）。生产一律 `startup`。
@@ -791,9 +796,9 @@ print(ctx2.field_source, ctx2.build_s)      # artifact, 0.00x s
 实测（同一台机器）：
 
 ```text
-现场建场  : 17.3 s   field_source=built
-读产物    : 0.18 s   field_source=artifact   build_s=0.139 s
-复核一跳  : ok  len=850.4 m  dur=49.24 s  clear=29.6 m   ← 与现场建场结果一致
+现场建场  : 17.7 s  field_source=built
+读产物    : 0.06 s  field_source=artifact   build_s=0.014 s
+复核一跳  : ok  len=822.2 m  dur=47.83 s  clear=17.0 m   ← 与现场建场结果一致
 ```
 
 ### 8.3 逐段请求
@@ -810,14 +815,14 @@ print(plan.metrics_dict())
 
 | # | UAV | 航段 | status | length_m | min_clearance_m | duration_s | 耗时 |
 |---:|---|---|---|---:|---:|---:|---:|
-| 1 | 0 | nest0 → 102 | ok | 822.2 | 17.01 | 47.83 | 3.0 s |
-| 2 | 0 | 102 → 103 | ok | 894.2 | 24.60 | 51.44 | 0.6 s |
-| 3 | 0 | 103 → 101 | ok | 1065.5 | 25.80 | 60.01 | 0.6 s |
-| 4 | 0 | 101 → nest0 | ok | 457.5 | 30.0 | 29.59 | 0.6 s |
+| 1 | 0 | nest0 → 102 | ok | 822.2 | 17.03 | 47.83 | 4.4 s |
+| 2 | 0 | 102 → 103 | ok | 894.2 | 24.60 | 51.44 | 0.9 s |
+| 3 | 0 | 103 → 101 | ok | 1065.5 | 25.80 | 60.01 | 0.8 s |
+| 4 | 0 | 101 → nest0 | ok | 457.5 | 30.0 | 29.59 | 0.8 s |
 | 5 | 2 | nest1 → 106 | ok | 601.6 | 9.63 | 36.80 | 0.9 s |
-| 6 | 2 | 106 → 105 | ok | 1024.6 | 23.24 | 62.87 | 0.8 s |
-| 7 | 2 | 105 → 104 | ok | 967.5 | 30.0 | 55.10 | 0.8 s |
-| 8 | 2 | 104 → nest1 | ok | 591.7 | 8.43 | 35.72 | 0.7 s |
+| 6 | 2 | 106 → 105 | ok | 1024.6 | 23.24 | 62.87 | 1.0 s |
+| 7 | 2 | 105 → 104 | ok | 967.5 | 30.0 | 55.10 | 1.1 s |
+| 8 | 2 | 104 → nest1 | ok | 591.7 | 8.43 | 35.72 | 1.0 s |
 
 **读数说明**：
 
@@ -826,7 +831,7 @@ print(plan.metrics_dict())
   **报 30.0 表示"至少 30 m"**（量程上限 `CLEARANCE_SEARCH_RADIUS_M = 30`）；
 - `duration_s` 来自**时间域轨迹**（NLP，最短飞行时间），没有轨迹时是 `None`——
   **绝不拿"路径长度 / 某个默认速度"凑一个假时长**；
-- 首段 3.0 s 是 CasADi 首次 JIT/建模开销，之后每段 0.6–0.9 s。
+- 首段 4.4 s 是 CasADi 首次 JIT/建模开销，之后每段 0.8–1.1 s（本机实测，随机器浮动）。
 
 ### 8.4 结果字段
 
@@ -931,12 +936,12 @@ python3 docs/examples/run_lasa_demo.py --quick    # 只跑 ta1（约 2 秒）
   "mission_id": "lasa_demo_001",
   "world_id": "lasa_chengguan",
   "frame_hash": "0af4e4fb592e",
-  "dataset_digest": "e9cebbed678f",
-  "ta1": {"n_executed": 6, "path_m": 6407.68, "home_return_ok": true, "...": "..."},
+  "dataset_digest": "230fdd6bcc0a",
+  "ta1": {"n_executed": 6, "path_m": 6411.15, "home_return_ok": true, "...": "..."},
   "tours": [{"uav_id": 0, "task_ids": [102, 103, 101],
              "start_nest_id": 0, "end_nest_id": 0}, "..."],
   "segments": [{"seg": 1, "uav_id": 0, "from_id": 0, "to_id": 102,
-                "status": "ok", "length_m": 822.22, "min_clearance_m": 17.01,
+                "status": "ok", "length_m": 822.22, "min_clearance_m": 17.03,
                 "duration_s": 47.83, "has_trajectory": true}, "..."],
   "review": [{"uav_id": 0, "task_id": 102, "arrive_s": 47.8,
               "latest": 1500.0, "late_s": 0.0}, "..."]

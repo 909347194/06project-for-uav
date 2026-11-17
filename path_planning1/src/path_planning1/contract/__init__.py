@@ -17,8 +17,8 @@
 **分组（交付时看清楚）**：``Trajectory / Metrics / Diagnostics / RegionOfInterest /
 VehicleLimits / PlannerParams / LocalFrame / GridSpec / Building`` 与各枚举是当前实现
 真正消费的类型；``PlanAlgorithm / PlanRequest / PlanResult / WorldSnapshot`` 是**内部遗留
-形状**——早期为"两包同构"定的契约，无实现者、不被任何 ``core`` 模块消费。它们仍可从本
-子包导入（``path_planning2`` 的契约夹具和一组契约测试依赖它们），但**已从 ``__all__``
+形状**——早期定的"两包同构"契约，无实现者、不被任何 ``core`` 模块消费。它们仍可从本
+子包导入（一组契约测试依赖它们），但**已从 ``__all__``
 移除**：``from path_planning1.contract import *`` 不会带出它们，顶层门面也不导出。
 后端只认 ``import path_planning1 as pp1`` 的顶层 ``__all__``，不要按这几个名字写接入代码。
 """

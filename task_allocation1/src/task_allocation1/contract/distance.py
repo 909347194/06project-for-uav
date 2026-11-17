@@ -2,7 +2,8 @@
 
 ``DistanceFn(pos_a, pos_b) -> float``：输入两个三维坐标序列，输出**有向**距离（米）。
 - 同巢起降下返航腿也要走它：末任务 → 起飞机巢（=终点机巢）。
-- ``None`` 时退化为三维欧氏（见 :func:`euclidean3d`），仅供无地形场景 / 测试。
+- ``None`` 时退化为三维欧氏（见 :func:`euclidean3d`）：分配层默认口径是
+  ``vertical_section``，欧氏只在无地形数据 / 测试里显式用。
 - 有向性：爬升/地形口径下 d(a,b) 可能 ≠ d(b,a)；调用方若有缓存须按有序键缓存。
 """
 
@@ -17,7 +18,7 @@ DistanceFn = Callable[[Position, Position], float]
 
 
 def euclidean3d(a: Position, b: Position) -> float:
-    """默认距离口径：三维直线距离。纯函数，无状态、无 I/O。"""
+    """三维直线距离（``CostConfig(model="euclid3d")`` 的口径）。纯函数，无状态、无 I/O。"""
     dx = float(a[0]) - float(b[0])
     dy = float(a[1]) - float(b[1])
     dz = float(a[2]) - float(b[2]) if len(a) > 2 and len(b) > 2 else 0.0

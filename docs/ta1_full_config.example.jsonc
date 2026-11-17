@@ -109,8 +109,9 @@
 
   // ===== 距离代价口径（分配阶段自己的代理尺子）=====
   "cost": {
-    // 默认 "euclid3d"；可选 "vertical_section"（沿 S-T 采剖面、按飞行带与包络做地形跟随）
-    "model": "euclid3d",
+    // 默认 "vertical_section"：沿 S-T 采剖面、按飞行带与包络做地形跟随，需配采样器
+    // （ground_z / obstacle_top_z）；无地形数据显式写 "euclid3d"（三维直线，零开销）
+    "model": "vertical_section",
     // 默认 10.0 / 120.0 m；飞行带（真高，相对该点地面）。
     // 每点下限 floor = max(地面+agl_min_m, 包络顶+clearance_m)，上限 ceil = 地面+agl_max_m；
     // floor > ceil 时怎么办由 over_band_mode 决定（默认 allow，agl_max 不硬生效）

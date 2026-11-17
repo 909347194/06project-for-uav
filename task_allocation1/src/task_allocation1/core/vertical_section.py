@@ -40,7 +40,8 @@ class VerticalSectionCost:
         if ground_z is None and obstacle_top_z is None:
             raise ValueError(
                 "vertical_section 至少需要一个采样器："
-                "ground_z(xs, ys) 给地面高程，obstacle_top_z(xs, ys) 给建筑屋顶包络顶"
+                "ground_z(xs, ys) 给地面高程，obstacle_top_z(xs, ys) 给建筑屋顶包络顶；"
+                "无地形数据请显式传 CostConfig(model='euclid3d')"
             )
         self._cfg = config
         self._ground = ground_z

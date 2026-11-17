@@ -15,6 +15,7 @@ def _req(seed: int = 0, gens: int = 6):
     nests = [ta1.Nest(id=0, x=0, y=0, capacity=4), ta1.Nest(id=1, x=3000, y=0, capacity=4)]
     return ta1.AllocateRequest(
         tasks=tasks, uavs=uavs, nests=nests,
+        cost_config=ta1.CostConfig(model="euclid3d"),  # 平坦合成场景：显式欧氏
         solver_config=ta1.SolverConfig(pop_size=8, max_generations=gens, seed=seed),
     )
 

@@ -134,7 +134,7 @@ def test_vertical_section_without_samplers_is_an_error() -> None:
 
 
 def test_euclid_model_returns_plain_euclidean() -> None:
-    fn = ta1.build_distance_fn(ta1.CostConfig())
+    fn = ta1.build_distance_fn(_cfg(model="euclid3d"))
     assert fn((0.0, 0.0, 0.0), (3.0, 4.0, 0.0)) == 5.0
     assert fn is ta1.euclidean3d
 
@@ -153,7 +153,7 @@ def test_allocate_uses_cost_config_through_request() -> None:
             **extra,
         )
 
-    plain = ta1.allocate(build(ta1.CostConfig()))
+    plain = ta1.allocate(build(ta1.CostConfig(model="euclid3d")))
     walled = ta1.allocate(build(_cfg(), ground_z=_flat, obstacle_top_z=_wall()))
     assert plain.solution.executed_task_ids == walled.solution.executed_task_ids
     assert walled.metrics_dict()["path_m"] > plain.metrics_dict()["path_m"]

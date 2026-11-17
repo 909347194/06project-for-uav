@@ -44,7 +44,7 @@ def allocate(request: AllocateRequest) -> AllocateResult:
         from dataclasses import replace
         pcfg = replace(pcfg, current_time=float(request.current_time))
     scfg: SolverConfig = request.solver_config
-    # 距离口径：显式注入的 fn 优先；否则按 cost_config 解析（默认三维欧氏）
+    # 距离口径：显式注入的 fn 优先；否则按 cost_config 解析（默认垂直切面）
     dist = _resolve_distance(request)
 
     if not tasks or not avail:
@@ -120,8 +120,9 @@ def allocate(request: AllocateRequest) -> AllocateResult:
 def _resolve_distance(request: AllocateRequest) -> DistanceFn:
     """解析距离口径：显式 ``distance_fn`` 优先；否则按 ``cost_config`` 现装配。
 
-    ``vertical_section`` 的采样器由调用方给（``ground_z`` / ``obstacle_top_z``）；
-    两者都没给时明确报错，而不是悄悄退回欧氏——口径错误必须暴露。
+    ``vertical_section``（默认口径）的采样器由调用方给（``ground_z`` / ``obstacle_top_z``）；
+    两者都没给时明确报错，而不是悄悄退回欧氏——口径错误必须暴露。无地形数据请显式
+    传 ``CostConfig(model="euclid3d")``。
     """
     if request.distance_fn is not None:
         return request.distance_fn

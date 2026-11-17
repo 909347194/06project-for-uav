@@ -1,5 +1,5 @@
 {
-  "note": "回归基线：默认欧氏距离、seed=0 下应复现的指标。改了数据/世界/参数就必须重算。",
+  "note": "回归基线：显式 euclid3d（mission.json 的 cost 段固定）、seed=0 下应复现的指标。改了数据/世界/参数就必须重算。",
   "world_id": "guangzhou",
   "frame_hash": "59ccbad38a06",
   "dataset_digest": "d60b50223a62",

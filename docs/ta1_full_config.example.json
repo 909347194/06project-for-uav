@@ -58,7 +58,7 @@
     "current_time": 0.0
   },
   "cost": {
-    "model": "euclid3d",
+    "model": "vertical_section",
     "agl_min_m": 10.0,
     "agl_max_m": 120.0,
     "clearance_m": 5.0,

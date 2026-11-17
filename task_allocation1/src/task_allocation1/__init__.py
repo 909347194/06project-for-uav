@@ -14,8 +14,8 @@
     → 交付后局部优化（跨机 relocate/swap + 组内 2-opt，四道门）。
 
 纯计算库：不联网、不读文件、不落库、无全局随机状态；距离口径由 ``distance_fn``
-或 ``cost_config`` 决定（默认三维欧氏；``vertical_section`` 走垂直切面估计，地面/建筑
-包络由调用方注入采样器）。随机性由 ``SolverConfig.seed`` 注入。服务壳（HTTP/缓存/
+或 ``cost_config`` 决定（默认垂直切面 ``vertical_section``，地面/建筑包络由调用方注入
+采样器；无地形数据显式选 ``euclid3d``）。随机性由 ``SolverConfig.seed`` 注入。服务壳（HTTP/缓存/
 进程池）、跨周期滚动编排均不在本包。
 两库分工：本库是分配层（谁飞、什么顺序、回哪个巢，恒为起飞巢），
 ``path_planning1`` 是落地层（分配定稿后逐航段出真航迹与时长）；两库各自带契约、不共享代码。

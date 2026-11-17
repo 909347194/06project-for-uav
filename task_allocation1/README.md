@@ -2,7 +2,7 @@
 
 多机巢多无人机协同任务分配的**纯计算内核**：把论文分配算法封装成可 `import` 的库，并改造为**同巢起降**——每架机从自己的机巢起飞、做完任务返回同一个机巢，终点不再是自由决策变量。论文三段主线都保留：DMDE 进化搜索 → 解码修复链 → 交付后局部优化。
 
-纯计算库：不联网、不读文件、不落库、无全局随机状态。距离口径由请求级配置 `cost_config` 决定（`euclid3d` 默认 / `vertical_section` 垂直切面），或直接注入 `distance_fn`；随机性由 `seed` 注入。
+纯计算库：不联网、不读文件、不落库、无全局随机状态。距离口径由请求级配置 `cost_config` 决定（`vertical_section` 垂直切面默认 / `euclid3d` 无地形显式），或直接注入 `distance_fn`；随机性由 `seed` 注入。
 
 **在系统中的位置**：本库是分配层，另一个算法库 `path_planning1` 是落地层。本库只回答"谁飞、按什么顺序飞、回哪个巢（恒=起飞巢）"，米数只是排序代理；真航迹与时长由 pp1 在分配定稿后逐航段给出。两库各自带契约、不共享代码，对接口径见 `../docs/3任务分配-路径规划对接.md`。
 
@@ -13,7 +13,7 @@
 | 对外入口 | `import task_allocation1 as ta1` → `ta1.allocate(ta1.AllocateRequest(...))`；顶层 `__all__`（25 个名字）是正式 API |
 | 核心改造 | **终点机巢恒 = 起飞巢**（`end_nest_id == start_nest_id == uav.nest_id`）；删掉异巢降落 / 最小费用流，返航代价照常计入航程与目标 |
 | 输入 | 内存中的 `tasks` / `uavs` / `nests` + `cost_config`（或 `distance_fn`）+ 配置；没有任何文件 I/O |
-| 距离尺子 | `CostConfig` 两档：`euclid3d`（三维直线）/ `vertical_section`（垂直切面，飞行带 `agl_min/agl_max`、净空 `clearance_m`、爬升率 `climb_rate`、采样 `num_samples` 全可配；地面与建筑包络由采样器注入） |
+| 距离尺子 | `CostConfig` 两档：`vertical_section`（默认，垂直切面；飞行带 `agl_min/agl_max`、净空 `clearance_m`、爬升率 `climb_rate`、采样 `num_samples` 全可配；地面与建筑包络由采样器注入）/ `euclid3d`（三维直线，无地形显式） |
 | 输出 | `AllocateResult`：`solution.tours`（每航次的任务序列+终点巢）、`executed_task_ids`、`metrics_dict()`、`home_return_ok` |
 | 算法三段 | ① DMDE（代价空间差分 + 温度退火反映射）② 修复链（合并/航程修复/改派/覆盖补全/时间窗重排）③ 局部优化（跨机 relocate/swap + 组内 2-opt，四道门） |
 | 口径 | 完成是约束、成本是目标；适应度 `f = W_hard·n_hard + w_exc·超程 + W_skip·n_skip + w_late·迟到 + λ·航程`（覆盖门禁，F1 只作事后指标） |
@@ -30,7 +30,7 @@ req = ta1.AllocateRequest(
            ta1.Task(id=1, x=800, y=0, reward=1.0, latest=3600)],
     uavs=[ta1.UAV(id=0, x=0, y=0, nest_id=0, speed=15.0, remaining_range=1e5)],
     nests=[ta1.Nest(id=0, x=0, y=0, capacity=4)],
-    distance_fn=ta1.euclidean3d,                       # 等价于 cost_config=ta1.CostConfig()；见 §1.1
+    distance_fn=ta1.euclidean3d,                       # 无地形数据时显式欧氏；有地形走默认档 + 采样器（§1.1）
     solver_config=ta1.SolverConfig(pop_size=30, max_generations=100, seed=42),
 )
 res = ta1.allocate(req)
@@ -44,19 +44,19 @@ res.metrics_dict()                # 扁平指标，供上层直接序列化
 ### 1.1 距离尺子：两档，全可配
 
 ```python
-cost = ta1.CostConfig(model="vertical_section", agl_min_m=10.0, agl_max_m=120.0,
+cost = ta1.CostConfig(agl_min_m=10.0, agl_max_m=120.0,   # 默认即 vertical_section
                       clearance_m=5.0, climb_rate=0.15, num_samples=200)
 req = ta1.AllocateRequest(..., cost_config=cost,
                           ground_z=ground_fn,        # (xs, ys) -> 各点地面高程（绝对 z）
                           obstacle_top_z=envelope_fn) # (xs, ys) -> 各点 max(地面, 屋顶顶面)
 ```
 
-- `euclid3d`：零依赖、零开销；平坦/无遮挡场景够用。
-- `vertical_section`：沿 S-T 连线采样包络做地形跟随，代价是每次调用要打采样器；带记忆化（有序键，方向相关），单周期内每条边只算一次。
+- `vertical_section`（默认）：沿 S-T 连线采样包络做地形跟随，代价是每次调用要打采样器；带记忆化（有序键，方向相关），单周期内每条边只算一次。两个采样器至少给一个，都不给直接报错（不偷偷退回欧氏）。
+- `euclid3d`：零依赖、零开销；无地形数据时显式选。
 - `over_band_mode`：`allow`（带外照爬，只报米数）/ `infeasible`（带内飞不过去的腿记 `inf`）。
 - 仍可用 `distance_fn=` 完全接管（二者同时给时 `distance_fn` 优先）。有世界数据时用 `scene_io.to_ta1_cost_samplers(world)` 现造两个采样器。
 
-实测（广州 `demo_001`，同 seed）：欧氏 `path_m=4501.9` → 切面 `4517.4`（+0.34%），航次与交付不变，0.28 s → 0.31 s。
+实测（广州 `demo_001`，同 seed）：欧氏 `path_m=4501.9` → 切面 `4517.4`（+0.34%），航次与交付不变，0.28 s → 0.31 s（该任务包显式固定 `euclid3d` 以复现基线）。
 
 整包配置示例：`../docs/ta1_full_config.example.json`（`solver` / `problem` / `cost` 三段，值等于代码默认；同目录 `.jsonc` 是带注释的阅读版），`tests/test_ta1_config_example.py` 守住示例与默认值不漂移。
 
@@ -91,7 +91,7 @@ src/task_allocation1/
 ├─ contract/
 │   ├─ defaults.py        全部默认常量（唯一来源）
 │   ├─ enums.py           状态 / 模型形态 / EndNestPolicy(仅 HOME)
-│   ├─ distance.py        DistanceFn 协议 + euclidean3d 兜底
+│   ├─ distance.py        DistanceFn 协议 + euclidean3d（euclid3d 档口径）
 │   ├─ entities.py        Task / UAV / Nest
 │   ├─ solution.py        UAVTour / AllocationSolution（含 home_return_ok）
 │   ├─ config.py          ConstraintConfig / ProblemConfig / SolverConfig
@@ -131,7 +131,7 @@ uv pip install -e task_allocation1
 ## 6. 边界 / 已知限制
 
 1. **单周期内核**：不做跨周期滚动、任务流到达、休眠/唤醒、事件重规划——那些是有状态服务层的事。本库每次调用是纯函数式的一次分配。
-2. **不接 DEM / 文件**：真实地形航程由 `cost_config=vertical_section` + 采样器给出（或直接注入 `distance_fn`）；本包自己不解析 DEM/建筑，缺省欧氏仅用于无地形场景与测试。
+2. **不接 DEM / 文件**：地形航程由默认档 `vertical_section` + 调用方采样器给出（或直接注入 `distance_fn`）；本包自己不解析 DEM/建筑，`euclid3d` 只在无地形数据时显式选。
 3. **同巢口径的代价**：机队归属与起飞巢绑定，不做跨周期重部署/轮转巢；这是同巢起降的语义取舍，不是缺陷。
 4. 覆盖门禁是一阶判据（能开班/能插入），不是全局最大覆盖证明。
 5. 纯计算，不含 HTTP / 缓存 / 进程池 / 超时；由上层服务自己包。

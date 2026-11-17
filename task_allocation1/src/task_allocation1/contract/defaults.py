@@ -54,7 +54,7 @@ DEFAULT_POLISH_EPS = 1e-6
 DEFAULT_COST_POLISH_EPS = 1.0
 
 # —— 距离代价口径（分配阶段的代理尺子，见 ``contract/cost_config.py``）------
-DEFAULT_COST_MODEL = "euclid3d"        # euclid3d | vertical_section
+DEFAULT_COST_MODEL = "vertical_section"  # vertical_section（默认）| euclid3d（无地形数据时显式选）
 DEFAULT_COST_AGL_MIN_M = 10.0          # 飞行带下界（真高，相对当地地面）
 DEFAULT_COST_AGL_MAX_M = 120.0         # 飞行带上界（真高）；over_band=infeasible 时生效
 DEFAULT_COST_CLEARANCE_M = 5.0         # 高于障碍包络（屋顶）的最小竖直净空
