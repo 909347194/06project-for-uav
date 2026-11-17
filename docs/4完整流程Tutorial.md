@@ -1,177 +1,73 @@
-# 4. 完整流程 Tutorial：从 0 到一次可交付的多机协同任务
+# 4. 完整流程 Tutorial：第一次就跑通一次多机任务
 
-> **背景**：拉萨市城关区（`lasa_chengguan`）。
-> **约定**：本文用 `/` 表示项目根目录（`06project-for-uav/`），所有相对路径从它算起。
-> **目标**：安装 → 配置 → 校验 → `ta1` 分配 → 展开航段 → `pp1` 逐段规划 → 回执复核（只报告差距）→ 落盘。
-> **可执行**：每步都能直接复制运行；配套脚本是 [`docs/examples/run_lasa_demo.py`](examples/run_lasa_demo.py)，数据已随仓库提供。
-> 数据格式与换城市不在本文展开，统一见 [`0数据准备与处理.md`](0数据准备与处理.md)。
+用一个现成例子（拉萨城关区 `lasa_chengguan`）从头到尾跑一遍：安装 → 校验 → 分配 → 展开 → 规划 → 复核 → 落盘。**数据已随仓库提供，命令可直接复制。**
 
-## 第一次用？按这条路线走
+> 本文用 `/` 表示项目根目录（`06project-for-uav/`），相对路径都从它算起。数据格式和换城市见 [文档 0](0数据准备与处理.md)，单个库的细节见 [文档 1](1怎么用-ta1算法.md) / [文档 2](2怎么用-pp1算法.md)，对接口径见 [文档 3](3任务分配-路径规划对接.md)。
 
-从头到尾跑一遍，就按下面的顺序读、按顺序做。前四步是"准备"，中间四步是"核心功能"，最后遇到问题解决：
+## 想先看到结果？
 
-| 顺序 | 做什么 | 跳到 | 跑完你能得到 |
-|---|---|---|---|
-| ① 准备环境 | 确认 Python / 内存 / 磁盘够不够 | [§2.1](#21-环境要求) | 一台能装库的机器 |
-| ② 安装 / 引入 | 用 uv 或 pip 装好，能在代码里 `import` | [§2.2–2.4](#22-用-uv推荐) | `import` 不报错、版本打出来 |
-| ③ 基础配置 | 看懂 `world / params / 请求` 三处配置 | [§3](#3-配置体系) | 一份能用的配置 |
-| ④ 数据准备 + 校验 | 用仓库自带数据，两行代码验过 | [§4–§5](#4-数据准备直接用仓库自带数据) | 通过校验的世界和任务包 |
-| ⑤ 核心：ta1 分配 | 得到"谁飞、什么顺序、回哪个巢" | [§6](#6-ta1任务分配) | `tours` |
-| ⑥ 核心：展开航段 | 把 tour 拆成空中段，**补绝对 z** | [§7](#7-展开为航段起降不进-pp1) | 航段列表 |
-| ⑦ 核心：pp1 规划 | 每段算真航迹 + 时长 | [§8](#8-pp1逐段规划) | `trajectory` / `duration_s` |
-| ⑧ 核心：复核 | 拿真值对照估算，**只报告差距** | [§9](#9-两库对接用真时长复核差距) | 差距报告 |
-| ⑨ 常见问题 | 报错了、要换城市、想一次跑完 | [§10–§12](#10-一键跑通--输出解读) | 排障 / 复用 |
-
-想先看到结果再回头学：直接跳 [§10 一键跑通](#10-一键跑通--输出解读)，一条命令跑完整条链路。
-
-## 1. 项目结构：每个包、每个目录是干什么的
-
-### 1.1 三个包
-
-```text
-/
-├─ task_allocation1/     【ta1】分配层：谁飞、什么顺序、回哪个巢
-├─ path_planning1/       【pp1】落地层：这一条航段到底怎么飞（航迹 + 时长 + 净空）
-└─ scene_io/             数据适配层：世界 / 任务包 → 纯数据（零依赖）
+```bash
+python3 docs/examples/run_lasa_demo.py            # 全程，约 1 分钟
+python3 docs/examples/run_lasa_demo.py --quick    # 只跑 ta1，约 2 秒
 ```
 
-| 包 | 回答什么 | 依赖 | 一句话 |
-|---|---|---|---|
-| `task_allocation1` (ta1) | **谁飞 / 什么顺序 / 回哪个巢** | `numpy` + `pillow` + `pyshp`（随包安装） | 纯计算；有地形读世界，没地形自动欧氏；同巢起降（终点恒=起飞巢） |
-| `path_planning1` (pp1) | **这一条航段怎么飞** | `numpy scipy pillow shapely pyshp`（+ 可选 `casadi`） | 读世界目录；RRT + CasADi/IPOPT，目标是**最短飞行时间** |
-| `scene_io` | **数据怎么落到磁盘、怎么读进来** | **无**（纯标准库） | 不 import ta1/pp1；对接靠数据契约 + 懒加载桥 |
+这一个脚本做六件事，对应下面 §4–§6：
 
-**三件事先记住**（后面所有内容都建立在这三条上）：
+```text
+① scene_io 装载世界 + 任务包（经纬度 → ENU，校验 frame / frame_hash）
+② ta1.allocate()        —— 谁飞、什么顺序、回哪个巢（同巢起降）
+③ 展开 tours → 航段      —— 只把空中航段交给 pp1，起降另算
+④ pp1.create_context()  —— 建全域场（一次）
+⑤ 逐段 ctx.plan()       —— 真航迹 + 时长 + 净空
+⑥ 用真 duration_s 复核时间窗与航程（只报告差距），写 results/
+```
 
-1. **两库互不 import，各自可单独安装上线**。只用分配就只装 ta1，只用规划就只装 pp1。
+输出落在 `/results/lasa_chengguan/lasa_demo_001/run_001.json`，含 `ta1` 指标、`tours`、每段 `segments`、逐任务 `review`（迟到对比）。
+
+## 1. 先记住三件事
+
+三个包：`task_allocation1`（ta1，分配）、`path_planning1`（pp1，单航段规划）、`scene_io`（数据适配，零依赖）。
+
+1. **两库互不 import，各自可单独安装上线**；只用分配就只装 ta1，只用规划就只装 pp1。
 2. **对接只走数据契约**：同一套 ENU 米、同一个 `frame_hash`、同一份 `world.json`。
-3. **高度从头到尾只有一个口径：绝对 `z`**。`AGL`（真高）是 pp1 库内部按 DEM 派生的校验量，
-   **不是接口字段、也不落库**。拉萨地面 ~3650 m，"离地 40 m" 就是 `z_abs ≈ 3690`，**不要传 40**。
+3. **高度从头到尾只有一个口径：绝对 z**。`AGL`（真高）是 pp1 库内部按 DEM 派生的校验量，**不是接口字段、也不落库**。拉萨地面 ~3650 m，"离地 40 m"就是 `z_abs ≈ 3690`，**不要传 40**。
 
-### 1.2 目录树（数据 / 产物 / 结果）
+## 2. 安装
 
-```text
-/
-├─ data/                                 # 进版本库（建筑 shp 除外）
-│  ├─ worlds/                            # 大、慢变：一城一份，被多个任务包共享
-│  │  └─ lasa_chengguan/                 # ← 本教程的世界
-│  │     ├─ world.json                   # world_id / frame / 高程基准 / 数据指纹
-│  │     ├─ region.geojson               # 必需：frame 的**唯一真源**
-│  │     ├─ building/                    # 必需：顶层 *.shp|*.geojson（**不递归**）
-│  │     │  ├─ lasa_residential.geojson
-│  │     │  ├─ lasa_commercial.geojson
-│  │     │  └─ lasa_public_services.geojson
-│  │     ├─ dem.tif                      # with_dem=true 时必需
-│  │     └─ nofly.geojson                # 可选：静态禁飞区
-│  ├─ missions/                          # 小、快变：一个任务包 = 一次分配的全部输入
-│  │  └─ lasa_demo_001/                  # ← 本教程的任务包
-│  │     ├─ mission.json                 # world_id + frame_hash + current_time + 配置
-│  │     ├─ nests.json / uavs.json / tasks.json
-│  │     └─ baseline.json                # 可选：回归基线
-│  └─ contracts/                         # 航段请求夹具（pp1 契约漂移测试用，不是业务数据）
-│
-├─ artifacts/                            # 不进版本库：建场产物（跟着世界走）
-│  └─ lasa_chengguan/default/            # sdf.npy + occupancy.npy + meta.json
-├─ results/                              # 不进版本库：你的输出
-│  └─ lasa_chengguan/lasa_demo_001/      # run_001.json
-│
-├─ docs/                                 # 0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 本篇
-│  └─ examples/run_lasa_demo.py          # 本教程的可执行配套
-└─ (三个包目录)
-```
-
-**四条归属规则**：世界目录名 = `world_id`；任务包只**引用**世界不复制世界；场产物跟世界走
-（`artifacts/<world_id>/<label>/`）；结果跟世界+任务走（`results/<world_id>/<mission_id>/`）。
-
-### 1.3 三层职责
-
-![ta1 与 pp1 的三层职责](figures/ta1-pp1-layers.svg)
-
-图 1：底层 ta1 负责分配，pp1 负责单航段轨迹；中层把 `tours` 展开成空中航段并补绝对 `z`；上层服务编排两库，用 pp1 真值复核 ta1 估算。复核只报告差距，不改派、不重排。
-
----
-
-## 2. 从零安装
-
-### 2.1 环境要求
-
-| 项 | 要求 | 说明 |
-|---|---|---|
-| Python | **3.11 或 3.12** | 仓库钉死 3.11（`.python-version`），casadi 的 Windows wheel 覆盖更稳 |
-| 内存 | ≥ 4 GB 可用 | 全域场建场期峰值；小城市 250 MB 级，大城市可达 GB 级 |
-| 磁盘 | ≥ 1 GB | 建筑数据 + 场产物 |
-| 网络 | 首次装依赖需要 | 之后离线可跑 |
-
-> 只用 `ta1`（不规划路径）：直接装 `task_allocation1` 即可，地形读取已随包；无地形自动欧氏，仍不需要 pp1。
-
-### 2.2 用 uv（推荐）
+环境：Python **3.11 / 3.12**、内存 ≥ 4 GB、磁盘 ≥ 1 GB、首次装依赖需联网。
 
 ```bash
 cd /
-uv sync --all-packages        # ← 这个 flag 不能省，根是 virtual workspace
+uv sync --all-packages        # 推荐；这个 flag 不能省——根是 virtual workspace，不带就装不到成员包依赖
 uv run pytest                 # 269 个用例
-uv run ruff check .           # 代码风格
+uv run ruff check .
 ```
 
-`--all-packages` 是关键：根 `pyproject.toml` 是 **virtual workspace**（`package = false`），
-不带这个 flag 装不到成员包的依赖，`import task_allocation1` 会直接失败。
-
-### 2.3 没有 uv：用 venv + pip
+没有 uv 就用 venv + pip，按需装：
 
 ```bash
 cd /
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 python -m pip install -U pip
-
-# 按需装：只用分配 → 只装 ta1；要规划 → 加 pp1；数据层零依赖但建议一起装
-pip install -e ./task_allocation1
-pip install -e ./path_planning1            # 不含 NLP 求解器
-pip install -e "./path_planning1[nlp]"     # 要轨迹（时长/速度剖面）就加上 casadi
+pip install -e ./task_allocation1                    # 只要"谁飞"
+pip install -e "./path_planning1[nlp]"               # 要时长就必须带 [nlp]，否则 trajectory 恒为 None
 pip install -e ./scene_io
-
-pip install pytest ruff                    # 开发期才需要
 ```
 
-国内网络慢可加镜像：`pip install -i https://pypi.tuna.tsinghua.edu.cn/simple ...`
-
-**三种装法的区别**：
-
-| 装法 | 得到什么 | 什么时候用 |
-|---|---|---|
-| 只装 `task_allocation1` | 只能分配，米数走垂直切面（默认，需采样器）/ 欧氏 | 只要"谁飞" |
-| `path_planning1` | 几何层完整（折线 + 真几何净空） | 只要"能不能飞、多远" |
-| `path_planning1[nlp]` | + 时间域轨迹（`duration_s` / 速度 / 推力） | **要时长就必须装**，否则 `trajectory` 恒为 `None` |
-
-### 2.4 验证安装
+验证：
 
 ```bash
-cd /
-python -c "import task_allocation1 as ta1; print(ta1.__version__, ta1.ALGORITHM_ID)"
-python -c "import path_planning1 as pp1;  print(pp1.__version__, pp1.ALGORITHM_ID)"
-python -c "import scene_io;               print(scene_io.__version__)"
-python -m pytest -q
+python -c "import task_allocation1 as ta1; print(ta1.__version__, ta1.ALGORITHM_ID)"   # 0.2.0 ta1-dmde-home-nest
+python -c "import path_planning1 as pp1;  print(pp1.__version__, pp1.ALGORITHM_ID)"    # 0.4.0 pp1-rrt-nlp-time
+python -c "import scene_io;               print(scene_io.__version__)"                 # 0.2.0
+python -m pytest -q                        # 266 passed + 3 skipped
 ```
 
-预期输出（版本号以你装的为准）：
+> 新 clone 跳过 3 个测试：`guangzhou` 的 5 个 shp 夹具（约 26 MB）按 `.gitignore` 排除需自备；本教程用的 `lasa_chengguan` 建筑是 GeoJSON（211 KB），**已随仓库提供**，clone 下来就能跑。
 
-```text
-0.2.0 ta1-dmde-home-nest
-0.4.0 pp1-rrt-nlp-time
-0.2.0
-269 个用例：266 passed + 3 skipped（1 个慢测 + 2 个需 guangzhou shp 夹具）
-```
+## 3. 配置
 
-> **新 clone 会有 3 个测试跳过**：`scene_io/tests/test_scene_io_contract.py` 的两条对拍用例需要
-> `data/worlds/guangzhou/building/` 的 5 个 shp（约 26 MB，按 `.gitignore` 排除，需自备），
-> 缺数据时**跳过而不是红**。本教程的 `lasa_chengguan` 建筑是 GeoJSON（211 KB），**已随仓库提供**，
-> `docs/examples/run_lasa_demo.py` clone 下来就能直接跑。
-
----
-
-## 3. 配置体系
-
-三处配置，别混：
+三层配置别混：
 
 | 层 | 在哪 | 谁消费 | 什么时候定 |
 |---|---|---|---|
@@ -179,118 +75,73 @@ python -m pytest -q
 | 参数 | pp1 的 `params` 段（走廊、栅格、飞行带、机型） | pp1 | `create_context` 一次固定 |
 | 请求 | ta1 的 `solver / problem / cost` 段 + 每条 OD | ta1 / pp1 | 每个任务包 / 每条请求 |
 
-ta1 的完整字段与默认值见 `1怎么用-ta1算法.md` §3.3；pp1 的完整字段见 `2怎么用-pp1算法.md` §3 与 `docs/pp1_full_config.example.json`。本教程只保留跑通所需的配置：
+本教程只用这份配置（`max_od_length_m=1500` 派生 `pad=244`：场约 255 MB、建场约 18 s，够用即可）：
 
 ```json
 {
   "world": {
-    "root": "data/worlds/lasa_chengguan",
-    "with_dem": true,
-    "field_mode": "startup",
-    "max_od_length_m": 1500.0,
-    "nofly_path": "nofly.geojson",
-    "nofly_altitude_mode": "absolute"
+    "root": "data/worlds/lasa_chengguan", "with_dem": true, "field_mode": "startup",
+    "max_od_length_m": 1500.0, "nofly_path": "nofly.geojson", "nofly_altitude_mode": "absolute"
   },
   "params": {
-    "roi":       {"width_ratio": 0.2, "margin_m": 50.0},
-    "spacing_m": [4.0, 4.0, 2.0],
-    "agl_min_m": 10.0, "agl_max_m": 120.0,
-    "seed": 0,
-    "vehicle":   {"v_max_mps": 20.0, "a_max_mps2": 3.0, "clearance_m": 5.0,
-                  "thrust_max_n": 100.0, "mass_kg": 5.0}
+    "roi": {"width_ratio": 0.2, "margin_m": 50.0}, "spacing_m": [4.0, 4.0, 2.0],
+    "agl_min_m": 10.0, "agl_max_m": 120.0, "seed": 0,
+    "vehicle": {"v_max_mps": 20.0, "a_max_mps2": 3.0, "clearance_m": 5.0,
+                "thrust_max_n": 100.0, "mass_kg": 5.0}
   }
 }
 ```
 
-`max_od_length_m=1500` 派生 `pad_m=244`：场约 255 MB、建场约 18 s。够用即可，调大它场会跟着涨。
+完整字段与默认值见 [文档 1](1怎么用-ta1算法.md) / [文档 2](2怎么用-pp1算法.md)。
 
-## 4. 数据准备（直接用仓库自带数据）
+## 4. 数据校验
 
-`data/worlds/lasa_chengguan/` 与 `data/missions/lasa_demo_001/` 已随仓库提供（建筑为 GeoJSON，211 KB），**本教程不需要重新生成数据**。只需确认：
-
-```text
-data/worlds/lasa_chengguan/   world.json + region.geojson + building/ + dem.tif + nofly.geojson
-data/missions/lasa_demo_001/  mission.json + nests/uavs/tasks.json
-```
-
-数据格式、字段清洗、预检与换城市步骤统一在 `0数据准备与处理.md`：ta1 看第一部分（§1–§6），pp1 看第二部分（§7–§13），两库同时用看第三部分（§14–§22）。本节不重复。
-
-> 这批建筑与 DEM 是合成的示意数据，坐标、`frame_hash`、`dataset_digest`、`z_abs` 口径是真的；输出数字只证明流程通，不代表真实可飞性。换真实数据见 `0数据准备与处理.md` §19。
-
-## 5. 数据校验
+数据已随仓库提供，`data/worlds/lasa_chengguan/` + `data/missions/lasa_demo_001/`，不用重新生成。只需两行验过：
 
 ```python
 import scene_io
-
-world = scene_io.load_world("data/worlds/lasa_chengguan")
-m = scene_io.load_mission("data/missions/lasa_demo_001", world=world)
+world = scene_io.load_world("data/worlds/lasa_chengguan")          # 校验 frame
+m = scene_io.load_mission("data/missions/lasa_demo_001", world=world)  # 一次报全数据问题
 print(m.summary())
+# {'mission_id': 'lasa_demo_001', 'world_id': 'lasa_chengguan', 'frame_hash': '0af4e4fb592e',
+#  'n_tasks': 6, 'n_uavs': 4, 'n_nests': 2, 'current_time': 0.0}
 ```
 
-```text
-{'mission_id': 'lasa_demo_001', 'world_id': 'lasa_chengguan',
- 'frame_hash': '0af4e4fb592e', 'n_tasks': 6, 'n_uavs': 4, 'n_nests': 2,
- 'current_time': 0.0}
-```
+这两行过了就能往下跑。> 这批建筑与 DEM 是合成示意数据：坐标、`frame_hash`、`dataset_digest`、`z_abs` 口径是真的，输出数字只证明流程通，不代表真实可飞性。
 
-`load_world` 校验 `world.json` 的 `frame_hash` 与 `region.geojson` 现算值一致；`load_mission` 一次报全 `world_id`、`frame_hash`、坐标、`z_abs`、`id`、容量问题。
+## 5. 核心四步
 
-只要这两行通过就可以往下跑；完整校验规则与 pp1 预检见 `0数据准备与处理.md` §4 / §12，换城市前再逐项对。
-
-## 6. ta1：任务分配
+### 5.1 ta1：任务分配
 
 ```python
-import scene_io
 import task_allocation1 as ta1
 from task_allocation1.terrain import load_world_terrain
 
-world = scene_io.load_world("data/worlds/lasa_chengguan")
-m = scene_io.load_mission("data/missions/lasa_demo_001", world=world)
-
-# 默认距离口径 = vertical_section：ta1 自己读世界地形/建筑
 ground_z, obstacle_top_z = load_world_terrain("data/worlds/lasa_chengguan").samplers()
-res = ta1.allocate(scene_io.to_ta1_request(
-    m, ground_z=ground_z, obstacle_top_z=obstacle_top_z,
-))
-
+res = ta1.allocate(scene_io.to_ta1_request(m, ground_z=ground_z, obstacle_top_z=obstacle_top_z))
 print(res.home_return_ok, res.solution.feasible)
 for t in res.solution.tours:
     print(f"UAV {t.uav_id}: nest {t.start_nest_id} -> {t.task_ids} -> nest {t.end_nest_id}")
-print(res.metrics_dict())
 ```
 
-实测（`seed=0`，同种子逐位可复现）：
+实测（`seed=0`，同种子逐位可复现）：耗时 1.6 s，`home_return_ok = True`、`feasible = True`，6 个任务分给 2 架机（另 2 架进场但闲置——`n_participating=4`，`n_active_uavs=2`）：
 
 ```text
-耗时 1.6s   model=srp   n_evals=1464
-home_return_ok = True   feasible = True
-  UAV 0: nest 0 -> [102, 103, 101] -> nest 0   est_cost=3239.5 m  est_reward=3.2
-  UAV 1: (闲置)
-  UAV 2: nest 1 -> [106, 105, 104] -> nest 1   est_cost=3171.6 m  est_reward=3.6
-  UAV 3: (闲置)
-{'n_participating': 4, 'model_type': 'srp', 'n_evals': 1464, 'n_executed': 6,
- 'path_m': 6411.15, 'return_leg_m': 1035.87, 'f1_reward': 6.8, 'f2_cost': 6411.15,
- 'feasible': True, 'home_return_ok': True}
+UAV 0: nest 0 -> [102, 103, 101] -> nest 0   est_cost=3239.5 m
+UAV 2: nest 1 -> [106, 105, 104] -> nest 1   est_cost=3171.6 m
+path_m=6411.15  return_leg_m=1035.87  f1_reward=6.8
 ```
 
 同巢不变量：每条非空航次 `end_nest_id == start_nest_id == uav.nest_id`。`path_m` 只是代理航程，**不是交付值**。
 
-配置、距离尺子（有地形走 `vertical_section`，无地形自动 `euclid3d`）见 `1怎么用-ta1算法.md` §3，结果字段见 §2.4；这里只保留跑通用的最小调用。
+### 5.2 展开为航段（最容易踩的坑）
 
-## 7. 展开为航段（**起降不进 pp1**）
+ta1 的一条 tour 是 `巢 → t1 → t2 → t3 → 巢`，但 pp1 的飞行带是**离地 10–120 m**，巢在地面。直接把 `巢 → t1` 喂给 pp1 会遇到起降垂直段的问题——那不是 pp1 的事。
 
-这是整条链路**最容易踩的坑**。ta1 的一条 tour 是：
-
-```text
-巢 → t1 → t2 → t3 → 巢        （同巢起降，首尾都是巢）
-```
-
-但 pp1 的飞行带是 **离地 10–120 m**。巢在地面，直接把 `巢 → t1` 喂给 pp1 会得到
-`out_of_flight_band`（真高 12 m 其实可以，但**垂直起降段**不是 pp1 的事）。
-
-正确做法：**每个航路点都按"巡航真高"抬到绝对 z，只把水平位移交给 pp1**：
+正确做法：每个航路点都带绝对 z，只把相邻点之间的空中位移交给 pp1；垂直起降段由上层自己管。
 
 ```python
+import itertools
 def expand_tours(res, mission):
     by_task = {t.id: t for t in mission.tasks}
     by_nest = {n.id: n for n in mission.nests}
@@ -298,167 +149,78 @@ def expand_tours(res, mission):
     for tour in res.solution.tours:
         if not tour.task_ids:
             continue
-        pts  = [by_nest[tour.start_nest_id]]
-        pts += [by_task[i] for i in tour.task_ids]
-        pts.append(by_nest[tour.end_nest_id])
+        pts = [by_nest[tour.start_nest_id]] + [by_task[i] for i in tour.task_ids] + [by_nest[tour.end_nest_id]]
         for a, b in itertools.pairwise(pts):
             segs.append({"uav_id": tour.uav_id,
-                         "from": {"id": a.id, "x": a.x, "y": a.y, "z": a.z},
-                         "to":   {"id": b.id, "x": b.x, "y": b.y, "z": b.z}})
+                         "from": {"x": a.x, "y": a.y, "z": a.z},
+                         "to":   {"x": b.x, "y": b.y, "z": b.z}})
     return segs
 ```
 
-本例 2 条 tour → **8 条空中航段**：
+本例 2 条 tour → **8 条空中航段**。要求"离地 25 m 巡航"就在这步把 z 抬到 `地面 + 25`，交给 pp1 后没有再换算的环节。
 
-```text
-UAV0  nest0 → 102 → 103 → 101 → nest0
-UAV2  nest1 → 106 → 105 → 104 → nest1
-```
-
-垂直起降段（离地 0 → 12 m 的爬升、最后的下降）由上层自己管，**不进 `ctx.plan`**。
-如果任务要求"离地 25 m 巡航"，就在这一步把 z 抬到 `地面 + 25`，交给 pp1 之后**没有再换算的环节**。
-
----
-
-## 8. pp1：逐段规划
-
-### 8.1 建场（进程启动一次）
+### 5.3 pp1：逐段规划
 
 ```python
 import path_planning1 as pp1
-
-cfg = {
-    "world": scene_io.to_pp1_world_kwargs(
-        world, max_od_length_m=1500.0, nofly_altitude_mode="absolute"),
-    "params": {},
-}
-ctx = pp1.create_context(cfg)
+ctx = pp1.create_context({"world": scene_io.to_pp1_world_kwargs(world, max_od_length_m=1500.0), "params": {}})
+res = ctx.plan((x0, y0), (x1, y1), z0, goal_z_m=z1)
+print(res.status.value, res.failure_code.value, res.metrics_dict())
 ```
 
-实测：
+建场实测：装载 + 建场 ≈ 17.7 s，`field_source=built`，全域场 `shape=(994, 732, 70)`、内存 255 MB。8 段全绿，摘录三段：
+
+| 航段 | status | length_m | min_clearance_m | duration_s |
+|---|---|---:|---:|---:|
+| nest0 → 102 | ok | 822.2 | 17.03 | 47.83 |
+| 102 → 103 | ok | 894.2 | 24.60 | 51.44 |
+| 104 → nest1 | ok | 591.7 | 8.43 | 35.72 |
+
+`min_clearance_m=30.0` 表示"至少 30 m"（量程上限），不是精确值。`duration_s` 只来自 pp1 的时间域轨迹；`trajectory=None` 时是 `DEGRADED`，不能拿长度除速度凑时长。生产上把场落成产物复用见 [文档 2](2怎么用-pp1算法.md) §部署。
+
+### 5.4 复核：用真时长看差距（只报告）
+
+把 ta1 估算和 pp1 真值摆在一起，列出哪些任务真值下会迟到、真航程差多少。**不改派、不重排**，要不要调整由上层服务决定。本例：
 
 ```text
-建场耗时 0.0s(装载) + 17.7s(建场)  field_source=built
-dataset_digest = 230fdd6bcc0a
-bounds_m = [0.0, 0.0, 3482.4, 2432.6]  max_od_length_m = 1500  pad_m = 244
-全域场 shape=(994, 732, 70)  内存 255 MB
-```
-
-生产上把场落成产物、其它进程 mmap 复用（`ctx.save_field(...)` / `create_context(field_artifact=...)`），做法见 `2怎么用-pp1算法.md` §5。
-
-### 8.2 逐段请求
-
-```python
-plan = ctx.plan((x0, y0), (x1, y1), z0, goal_z_m=z1)
-print(plan.status.value, plan.failure_code.value)
-print(plan.metrics_dict())
-```
-
-`start_xy / goal_xy` 是 ENU 米，`start_z_m / goal_z_m` 是**绝对 z**。本例 8 段全绿：
-
-| # | UAV | 航段 | status | length_m | min_clearance_m | duration_s | 耗时 |
-|---:|---|---|---|---:|---:|---:|---:|
-| 1 | 0 | nest0 → 102 | ok | 822.2 | 17.03 | 47.83 | 4.4 s |
-| 2 | 0 | 102 → 103 | ok | 894.2 | 24.60 | 51.44 | 0.9 s |
-| 3 | 0 | 103 → 101 | ok | 1065.5 | 25.80 | 60.01 | 0.8 s |
-| 4 | 0 | 101 → nest0 | ok | 457.5 | 30.0 | 29.59 | 0.8 s |
-| 5 | 2 | nest1 → 106 | ok | 601.6 | 9.63 | 36.80 | 0.9 s |
-| 6 | 2 | 106 → 105 | ok | 1024.6 | 23.24 | 62.87 | 1.0 s |
-| 7 | 2 | 105 → 104 | ok | 967.5 | 30.0 | 55.10 | 1.1 s |
-| 8 | 2 | 104 → nest1 | ok | 591.7 | 8.43 | 35.72 | 1.0 s |
-
-`min_clearance_m=30.0` 表示“至少 30 m”（量程上限），不是精确值。`duration_s` 只来自 pp1 的时间域轨迹；`trajectory=None` 时是 `DEGRADED`，不能拿长度除速度凑时长。结果字段、失败码与降级见 `2怎么用-pp1算法.md` §4。
-
-## 9. 两库对接：用真时长复核差距
-
-按 `3任务分配-路径规划对接.md` 的三步走：ta1 出 `tours` → 展开成空中航段 → pp1 逐段规划 → 用真 `duration_s` 复核 ETA / 时间窗 / 续航。**复核只报告差距、不重排、不改派**——把 ta1 分配时的估算值和 pp1 落地后的真值摆在一起比一比，列出哪些任务真值下会迟到、真航程差多少；要不要据此改派由上层服务决定，不在本仓。
-
-本例复核结果：
-
-```text
- UAV   task     到达(s)       最晚    迟到(s)
+ UAV   task     到达(s)     最晚    迟到(s)
    0    102      47.8   1500.0      0.0
    0    103     200.0   1800.0      0.0
-   0    101     290.0   1500.0      0.0
    2    106      36.8   1700.0      0.0
-   2    105     129.7   1700.0      0.0
-   2    104     214.8   1600.0      0.0
-
 迟到任务数 = 0 / 6
 ```
 
-三种回执只进报告、不改派：`ok + trajectory` 用真值算差距；`ok + trajectory=None` 标 `DEGRADED`（时长不可信，不进时间窗对比）；`infeasible` 记失败码 + 端点、标该段不可行。接口字段、缓存键、失败处理见 `3任务分配-路径规划对接.md` §2–§5。
+三种回执只进报告、不改派：`ok + trajectory` 用真值算差距；`ok + trajectory=None` 标 `DEGRADED`（时长不可信，不进对比）；`infeasible` 记失败码 + 端点。
 
-## 10. 一键跑通 + 输出解读
+## 6. 落盘与缓存
 
-```bash
-cd /
-python3 docs/examples/run_lasa_demo.py            # 全程（约 1 分钟）
-python3 docs/examples/run_lasa_demo.py --quick    # 只跑 ta1（约 2 秒）
-```
+结果写 `results/<world_id>/<mission_id>/run_001.json`，含 `mission_id`、`world_id`、`frame_hash`、`dataset_digest`、`ta1`、`tours`、`segments`、`review`。
 
-脚本做 6 件事，对应本文 §5–§9（第 ⑥ 步只报告差距、不改派）：
+缓存键 = `dataset_digest + params_hash + 两端 xy/z`（**不用 `world_id`**——目录名改了数据未必变，只有内容指纹可靠）；任一项变了结果就不可比、缓存必须失效。
 
-```text
-① scene_io 装载世界 + 任务包（经纬度 → ENU，校验 frame / frame_hash）
-② ta1.allocate()            —— 谁飞、什么顺序、回哪个巢（同巢起降）
-③ 展开 tours → 航段          —— 只把空中航段交给 pp1，起降另算
-④ pp1.create_context()      —— 建全域场（一次），保存产物供复用
-⑤ 逐段 ctx.plan()           —— 真航迹 + 时长 + 净空
-⑥ 用真 duration_s 复核时间窗与航程（只报告差距），写 results/
-```
+## 7. 换城市
 
-落盘到 `/results/lasa_chengguan/lasa_demo_001/run_001.json`：
+按 [文档 0](0数据准备与处理.md) §12 的九步做：定运营区 → 建筑 → DEM → 禁飞区 → `world.json` → 预检建场 → 任务包 → ta1 冒烟 → 基线。改完数据必须同时做三件事：重算 `dataset_digest` 写回 `world.json`、删掉 `artifacts/` 重建场、重算 `baseline.json`。
 
-```json
-{
-  "mission_id": "lasa_demo_001",
-  "world_id": "lasa_chengguan",
-  "frame_hash": "0af4e4fb592e",
-  "dataset_digest": "230fdd6bcc0a",
-  "ta1": {"n_executed": 6, "path_m": 6411.15, "home_return_ok": true, "...": "..."},
-  "tours": [{"uav_id": 0, "task_ids": [102, 103, 101],
-             "start_nest_id": 0, "end_nest_id": 0}, "..."],
-  "segments": [{"seg": 1, "uav_id": 0, "from_id": 0, "to_id": 102,
-                "status": "ok", "length_m": 822.22, "min_clearance_m": 17.03,
-                "duration_s": 47.83, "has_trajectory": true}, "..."],
-  "review": [{"uav_id": 0, "task_id": 102, "arrive_s": 47.8,
-              "latest": 1500.0, "late_s": 0.0}, "..."]
-}
-```
-
-缓存键 = `dataset_digest` + `params_hash` + 两端 `xy/z`（不用 `world_id`，目录名改了数据未必变，只有内容指纹可靠）；任何一个变了结果就不可比、缓存必须失效。
-
----
-
-## 11. 换城市
-
-按 `0数据准备与处理.md` §19 的 10 步做：定运营区 → 建筑 → DEM → 禁飞区 → `world.json` → 预检建场 → 任务包 → ta1 冒烟 → 基线 → 对接抽检。坐标转换命令也在那一节。
-
-改完数据必须同时做三件事：重算 `dataset_digest` 写回 `world.json`、删掉 `artifacts/` 重建场、重算 `baseline.json`。
-
-## 12. 常见报错
-
-按“在哪一步炸的”找。第一行能解决大部分首次使用的问题；更全的清单见文末链接。
+## 8. 常见报错（按在哪一步炸的找）
 
 | 现象 / 报错 | 多半是 | 怎么修 |
 |---|---|---|
-| `import task_allocation1` 失败 | 没带 `--all-packages` 装，根是 virtual workspace | `uv sync --all-packages`，或 venv 下 `pip install -e ./task_allocation1` |
-| `ModuleNotFoundError: casadi` / `trajectory` 全是 `None` | 装了 pp1 但没装 NLP 依赖 | `pip install -e "./path_planning1[nlp]"` |
-| 版本号 / 269 用例对不上 | 装的是别处版本 | 在仓库根 `/` 重装、重跑 §2.4 验证 |
-| `frame_hash 不匹配` / `world_id 不匹配` | 任务包不是用这个世界的 frame 算的 | 重算经纬度或换 `world_id`，见 `0数据准备与处理.md` §4.2 |
-| `任务包只收 lon/lat` | 任务包里写了 ENU 的 `x/y` | 用 `frame.to_lonlat(x, y)` 反算回经纬度 |
-| `缺少 z_abs` | 只给了 AGL / 相对高度 | 补 `z_abs = ground_z + AGL`（唯一的加法点在适配层） |
-| 大量 `out_of_flight_band` | 把“离地 40 m”当成绝对 z 传了 40 | 拉萨地面 ~3650 m，应传 `z_abs ≈ 3690`，见 §1.1 |
-| `od_too_long` | OD 超过 `max_od_length_m`（本教程 1500 m） | 拆航段，或调大契约并重建场（场会变大） |
-| 建场很慢 / 内存爆 | `max_od_length_m` 或 `spacing_m` 调太大 | 够用即可；生产改用 `field_artifact` mmap，见 `2怎么用-pp1算法.md` §5 |
+| `import task_allocation1` 失败 | 没带 `--all-packages`，根是 virtual workspace | `uv sync --all-packages`，或 `pip install -e ./task_allocation1` |
+| `ModuleNotFoundError: casadi` / `trajectory` 全 `None` | 装了 pp1 没装 NLP 依赖 | `pip install -e "./path_planning1[nlp]"` |
+| `frame_hash` / `world_id` 不匹配 | 任务包不是用这个世界的 frame 算的 | 重算经纬度或换 `world_id` |
+| `任务包只收 lon/lat` | 任务包里写了 ENU 的 `x/y` | 用 `frame.to_lonlat(x, y)` 反算 |
+| `缺少 z_abs` | 只给了 AGL / 相对高度 | 补 `z_abs = ground_z + AGL`（唯一加法点在适配层） |
+| 大量 `out_of_flight_band` | 把"离地 40 m"当绝对 z 传了 40 | 拉萨地面 ~3650 m，应传 `z_abs ≈ 3690` |
+| `od_too_long` | OD 超过 `max_od_length_m`（本教程 1500 m） | 拆航段，或调大契约并重建场 |
+| 建场慢 / 内存爆 | `max_od_length_m` 或 `spacing_m` 调太大 | 够用即可；生产改 `field_artifact` mmap |
 | `rrt_no_path` / `roi_no_path` | 走廊太窄 / 净空太大 / 分辨率不匹配 | 先调 `roi.width_ratio`、净空、数据，别只加迭代 |
-| `FieldContractError` | 产物过期、数据改了没重建场、窗口越界 | **部署事故**：重建产物，不要重试、不要映射成 400 |
-| `trajectory=None` 但 `status=ok` | NLP 没解出时间剖面 | 标 `DEGRADED`，只给折线；**不是失败**，别当已验证时间可行性 |
-| `path_clearance_violated` | 真几何净空终检没过（求解器缺陷） | 不重试；带 OD + `params_hash` + 最差点上报人工 |
+| `FieldContractError` | 产物过期、数据改了没重建场、窗口越界 | **部署事故**：重建产物，别重试、别映射成 400 |
+| `trajectory=None` 但 `status=ok` | NLP 没解出时间剖面 | 标 `DEGRADED`，只给折线；**不是失败** |
+| `path_clearance_violated` | 真几何净空终检没过 | 不重试；带 OD + `params_hash` + 最差点上报人工 |
 
-更全的清单：数据侧/构建见 `0数据准备与处理.md` §20；pp1 的 9 个失败码与降级见 `2怎么用-pp1算法.md` §4；对接侧口径见 `3任务分配-路径规划对接.md` §4。
+更全的清单：[文档 0](0数据准备与处理.md) §13（数据）、[文档 2](2怎么用-pp1算法.md)（pp1 失败码）、[文档 3](3任务分配-路径规划对接.md)（对接）。
 
-## 13. 文档地图
+---
 
-`0` 数据准备与处理 → `1` ta1 配置与用法 → `2` pp1 配置与用法 → `3` 两库对接 → `4` 本文（完整跑通）。
+**文档地图**：`0` 数据准备 → `1` ta1 → `2` pp1 → `3` 两库对接 → `4` 本文（完整跑通）。
