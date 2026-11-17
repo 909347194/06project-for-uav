@@ -14,7 +14,7 @@
 不横向绕行**，所以楼密集时偏低（这也是它只作分配代理、不作交付口径的原因）。
 
 本模块零 I/O：地面与障碍包络一律由调用方注入采样器（``SurfaceSampler``）；
-需要从世界目录现造时用 ``task_allocation1.terrain``（可选子模块，不 import pp1）。
+需要从世界目录现造时用 ``task_allocation1.terrain``（自带子模块，不 import pp1）。
 """
 
 from __future__ import annotations
@@ -152,9 +152,10 @@ def build_distance_fn(
     """按配置生成**带记忆化**的距离函数（有序键：切面航程方向相关，禁对称化）。
 
     ``model="euclid3d"`` 直接返回 :func:`euclidean3d`（无状态、无需缓存）。
+    默认 ``vertical_section`` 但没给任何采样器时也返回欧氏：无地形数据不挡调用。
     """
     config.validate()
-    if config.model == "euclid3d":
+    if config.model == "euclid3d" or (ground_z is None and obstacle_top_z is None):
         return euclidean3d
     est = VerticalSectionCost(config, ground_z=ground_z, obstacle_top_z=obstacle_top_z)
     memo: dict[tuple[tuple[float, ...], tuple[float, ...]], float] = {}

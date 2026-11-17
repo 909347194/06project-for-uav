@@ -5,7 +5,7 @@
 - distance_fn：注入的有向距离口径（米）；None → 按 ``cost_config`` 解析（默认垂直切面）。
 - cost_config：距离代价口径（``vertical_section`` 默认 / ``euclid3d`` 及其飞行带、净空、爬升率）。
 - ground_z / obstacle_top_z：``vertical_section`` 的采样器（地面高程 / 建筑屋顶包络顶）；
-  数据仍由调用方给，本库不读文件；默认口径下至少给一个，否则报错。
+  数据仍由调用方给；两者都不给时默认口径自动走 ``euclid3d``。
 - problem_config / solver_config：评价口径与求解预算。
 - fleet_uavs：全部无人机（含 BUSY/FAULT），仅用于推导机巢占用；缺省 = uavs。
 - current_time：本周期规划时刻（时间窗游标起点）；给出则覆盖 problem_config。

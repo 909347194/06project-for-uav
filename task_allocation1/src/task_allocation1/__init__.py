@@ -17,8 +17,8 @@
 或 ``cost_config`` 决定（默认垂直切面 ``vertical_section``，地面/建筑包络由调用方注入
 采样器；无地形数据显式选 ``euclid3d``）。随机性由 ``SolverConfig.seed`` 注入。服务壳（HTTP/缓存/
 进程池）、跨周期滚动编排均不在本包。
-可选 ``terrain`` 子模块自带世界目录读取（GeoTIFF/GeoJSON/Shapefile → 两个采样器），
-不依赖 ``path_planning1``；核心算法本身仍不碰文件。
+``terrain`` 子模块随包安装，自带世界目录读取（GeoTIFF/GeoJSON/Shapefile → 两个采样器），
+不依赖 ``path_planning1``；核心算法本身仍不碰文件。没有地形采样器时默认口径自动走欧氏。
 两库分工：本库是分配层（谁飞、什么顺序、回哪个巢，恒为起飞巢），
 ``path_planning1`` 是落地层（分配定稿后逐航段出真航迹与时长）；两库各自带契约、不共享代码。
 

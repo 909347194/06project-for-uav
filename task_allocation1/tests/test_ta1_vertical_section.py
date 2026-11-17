@@ -128,9 +128,10 @@ def test_config_validation_errors() -> None:
         _cfg(over_band_mode="clip").validate()
 
 
-def test_vertical_section_without_samplers_is_an_error() -> None:
-    with pytest.raises(ValueError, match="至少需要一个采样器"):
-        ta1.build_distance_fn(_cfg())
+def test_vertical_section_without_samplers_falls_back_to_euclid() -> None:
+    fn = ta1.build_distance_fn(_cfg())
+    assert fn is ta1.euclidean3d
+    assert fn((0.0, 0.0, 0.0), (3.0, 4.0, 0.0)) == 5.0
 
 
 def test_euclid_model_returns_plain_euclidean() -> None:

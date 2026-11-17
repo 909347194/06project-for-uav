@@ -62,7 +62,7 @@ res = ta1.allocate(scene_io.to_ta1_request(m, ground_z=ground_z,
                                            obstacle_top_z=obstacle_top_z))
 ```
 
-`mission.json` 的 `cost` 段可改参数（不写即默认 `vertical_section`）；采样器仍需调用方传，缺了直接报错，无地形数据显式 `cost_config=ta1.CostConfig(model="euclid3d")`。
+`mission.json` 的 `cost` 段可改参数（不写即默认 `vertical_section`）；有地形传采样器，没地形不传，默认自动 `euclid3d`。
 
 接 **pp1**（`to_pp1_world_kwargs` 只回一个 dict，**不需要 import pp1**）：
 

@@ -79,7 +79,7 @@ class DEM:
 
 
 def load_geotiff_dem(path: str | Path, *, nodata: float | None = None) -> DEM:
-    """读单波段 GeoTIFF（EPSG:4326）。需要可选依赖 ``pillow``。"""
+    """读单波段 GeoTIFF（EPSG:4326）。依赖 ``pillow``（随包安装）。"""
     try:
         from PIL import Image
     except ImportError as exc:  # pragma: no cover - 环境问题

@@ -6,7 +6,7 @@
 // 3. 本文件里的值全部等于代码默认值：拿它当"默认口径清单"用，改哪个键就把哪个值改掉。
 // 4. 走任务包（data/missions/<id>/mission.json）时，同名的 `solver` / `problem` / `cost` 段等价，
 //    由 `scene_io.to_ta1_request()` 自动装配；本文件用于直接调 `ta1.allocate()` 的服务端。
-// 5. ta1 是纯计算库：配置只进内存，不读文件。JSON 由你读、你传。
+// 5. ta1 核心是纯计算：配置只进内存。地形读取走自带 `ta1.terrain`，不在本文件里。
 
 {
   // ===== 搜索预算（DMDE）与选机 =====
@@ -82,8 +82,8 @@
 
   // ===== 距离代价口径（分配阶段自己的代理尺子）=====
   "cost": {
-    // 默认 "vertical_section"：沿 S-T 采剖面、按飞行带与包络做地形跟随，需配采样器
-    // （ground_z / obstacle_top_z）；无地形数据显式写 "euclid3d"（三维直线，零开销）
+    // 默认 "vertical_section"：沿 S-T 采剖面、按飞行带与包络做地形跟随；有地形时配
+    // 采样器（ground_z / obstacle_top_z），没有就不传，自动走 "euclid3d"（三维直线）
     "model": "vertical_section",
     // 默认 10.0 / 120.0 m；飞行带（真高，相对该点地面）。
     // 每点下限 floor = max(地面+agl_min_m, 包络顶+clearance_m)，上限 ceil = 地面+agl_max_m；

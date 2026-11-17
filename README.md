@@ -29,7 +29,7 @@
 **两库各自独立**：互不 import，各自能单独安装、单独上线（只用分配就只装 ta1）。
 `import task_allocation1 as ta1` / `import path_planning1 as pp1` 是各自唯一门面。
 对接靠**数据契约**：同一套 ENU 米、同一个 `frame_hash`、同一份 `world.json` +
-`data/contracts/plan_request_example.json` 的契约测试。ta1 自带可选 `terrain` 直接读世界地形；
+`data/contracts/plan_request_example.json` 的契约测试。ta1 自带 `terrain`（随包安装）直接读世界地形；
 `scene_io` 只是另一条可选的数据适配层，`dependencies = []`，不 import 这两个库。
 
 ## 文档分工（按读者）
@@ -44,7 +44,7 @@
 | `docs/3任务分配-路径规划对接.md` | **只讲对接**：两库关系、对接三步、请求/回执字段、失败回环、延迟预算、验收清单 | 上层 / 联调 |
 | `docs/4完整流程Tutorial.md` | **完整使用**（拉萨市城关区）：安装、配置、校验、ta1 → 展开航段 → pp1 → 回执复核、一键脚本；数据格式回指 0 | 新人 / 联调 |
 | `docs/5交付说明-给后端.md` | **接之前必读**：交付状态、6 条接入要点、**已知问题（K≤N-1 / DEM 栅格类型 / 合成数据）**、服务壳职责、联调验收清单 | 后端 / 联调 |
-| `scene_io/README.md` | 零依赖数据适配层：world/mission 加载、frame 校验、懒加载桥（pp1 世界入参 / ta1 请求 / ta1 切面采样器）；ta1 的 `terrain` 子模块可替代切面采样器这一桥 | 数据工程 / 后端 |
+| `scene_io/README.md` | 零依赖数据适配层：world/mission 加载、frame 校验、懒加载桥（pp1 世界入参 / ta1 请求 / ta1 切面采样器）；ta1 的 `terrain` 子模块随包提供地形采样 | 数据工程 / 后端 |
 
 算法口径、实测基线、已知偏差、整理记录只在两库各自的 README（改代码时看）。
 
@@ -57,7 +57,7 @@
 | 方法 | DMDE（代价空间差分 + 温度退火反映射）→ 解码修复链 → 交付后局部优化 | RRT 多初值选优 → 真几何净空终检 → CasADi/IPOPT 时间域 NLP |
 | 输入 | 内存中的 `tasks` / `uavs` / `nests` + `cost_config`（或注入 `distance_fn`） | 建筑（`*.shp` / `*.geojson`）+ 可选 DEM / 禁飞区 + OD |
 | 输出 | `AllocateResult.tours`（任务序列 + 终点巢）、`metrics_dict()` | `RouteSegmentPlan`（`trajectory` 主交付 + `path_enu` 兜底 + 指标） |
-| 速度 | 毫秒级排序代理（默认垂直切面，需采样器；欧氏零开销） | 单航段 5.7–8.2 s（有场，本机实测 7.3–7.5 s；`on_demand` 5.5–5.6 s）；建场 120–140 s 一次 |
+| 速度 | 毫秒级排序代理（有地形走垂直切面，无地形自动欧氏） | 单航段 5.7–8.2 s（有场，本机实测 7.3–7.5 s；`on_demand` 5.5–5.6 s）；建场 120–140 s 一次 |
 | 状态 | **v0.2.0**：同巢起降 + 可配置距离尺子（垂直切面默认 / 欧氏），47 测试通过 | **v0.4.0**：几何层 + 时间域轨迹层已交付后端 |
 
 调用链：`ta1.allocate(...)` 定稿 → 展开每条 tour（含"末任务 → 起飞巢"返航腿）→ 逐航段 `pp1.ctx.plan(...)` → 真 `duration_s` 回来复核时间窗与航程。详见 `docs/3任务分配-路径规划对接.md`。
@@ -79,7 +79,7 @@
 | 项 | 结论 |
 |---|---|
 | 同巢起降 | **终点恒=起飞巢**（`end_nest_id == start_nest_id == uav.nest_id`），无开关；异巢 MCF / 投影已删除 |
-| 距离口径 | 两档：`"vertical_section"`（默认，垂直切面：`agl_min/agl_max`、`clearance_m`、`climb_rate`、`num_samples` 全可配，地面/建筑包络由采样器注入）或 `CostConfig(model="euclid3d")`（无地形数据显式）；也可直接注入 `distance_fn(pos_a,pos_b)->米`（**有向**，优先） |
+| 距离口径 | 两档：`"vertical_section"`（默认，垂直切面：`agl_min/agl_max`、`clearance_m`、`climb_rate`、`num_samples` 全可配，有地形给采样器）或 `CostConfig(model="euclid3d")`（无地形自动）；也可直接注入 `distance_fn(pos_a,pos_b)->米`（**有向**，优先） |
 | 搜索预算 | 种群 50 × 200 代；`ζ=3`、`λ=0.1`、迟到 `0.01/s`、硬违约系数 `10` |
 | 可复现 | `SolverConfig.seed` 单通道 `np.random.default_rng`；同种子逐位一致 |
 | 正确性 | 独立重算账目，不靠库自带校验自证（实验脚本不在本发行版，方法见 `task_allocation1/README.md` §5） |

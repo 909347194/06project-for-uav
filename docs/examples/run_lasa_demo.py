@@ -13,7 +13,7 @@
     ⑤ 逐段 ctx.plan()           —— 真航迹 + 时长 + 净空
     ⑥ 用真 duration_s 复核时间窗与航程，写 results/
 
-零第三方依赖（只用标准库 + 三个 workspace 成员包）；不改任何库内代码。
+三个 workspace 成员包（依赖由各包自带）；不改任何库内代码。
 """
 from __future__ import annotations
 
@@ -26,6 +26,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))  # 仓库根 = 运行根（教程假设项目根目录为 /）
+
+from task_allocation1.terrain import load_world_terrain
 
 import scene_io
 import task_allocation1 as ta1
@@ -64,12 +66,12 @@ def load_scene():
 
 
 # ---------------------------------------------------------------- ② ta1
-def allocate(mission, world):
+def allocate(mission):
     section("② ta1.allocate() —— 谁飞、什么顺序、回哪个巢")
     req = scene_io.to_ta1_request(mission)          # 距离口径走 mission.json 的 cost 段
     if req.cost_config.model == "vertical_section" and req.ground_z is None:
-        # 默认口径是垂直切面：地面高程 + 建筑屋顶包络由 scene_io 从世界现造（懒加载 pp1）
-        ground_z, obstacle_top_z = scene_io.to_ta1_cost_samplers(world)
+        # 默认口径是垂直切面：ta1 自己读世界地形/建筑，不经过 pp1
+        ground_z, obstacle_top_z = load_world_terrain(WORLD_DIR).samplers()
         req = scene_io.to_ta1_request(mission, ground_z=ground_z,
                                       obstacle_top_z=obstacle_top_z)
     t0 = time.perf_counter()
@@ -209,7 +211,7 @@ def main() -> int:
     args = ap.parse_args()
 
     world, mission = load_scene()
-    res = allocate(mission, world)
+    res = allocate(mission)
     segs = expand_tours(res, mission)
     print(f"\n展开为 {len(segs)} 条空中航段（起降垂直段不在其中）")
     for s in segs:

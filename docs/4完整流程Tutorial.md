@@ -19,7 +19,7 @@
 
 | 包 | 回答什么 | 依赖 | 一句话 |
 |---|---|---|---|
-| `task_allocation1` (ta1) | **谁飞 / 什么顺序 / 回哪个巢** | 核心只要 `numpy`；读世界地形需 `[terrain]`（`pillow`/`pyshp`） | 纯计算，**核心不读文件、不联网**；默认切面需注入采样器；同巢起降（终点恒=起飞巢） |
+| `task_allocation1` (ta1) | **谁飞 / 什么顺序 / 回哪个巢** | `numpy` + `pillow` + `pyshp`（随包安装） | 纯计算；有地形读世界，没地形自动欧氏；同巢起降（终点恒=起飞巢） |
 | `path_planning1` (pp1) | **这一条航段怎么飞** | `numpy scipy pillow shapely pyshp`（+ 可选 `casadi`） | 读世界目录；RRT + CasADi/IPOPT，目标是**最短飞行时间** |
 | `scene_io` | **数据怎么落到磁盘、怎么读进来** | **无**（纯标准库） | 不 import ta1/pp1；对接靠数据契约 + 懒加载桥 |
 
@@ -73,8 +73,7 @@ scene_io ──(零依赖，不 import 下面两个)──┐
 ta1 ◄────────── 互不 import ──────────► pp1
 ```
 
-`scene_io` 里的 `to_ta1_request()` / `to_ta1_cost_samplers()` 是**懒加载桥**：函数体里才 import，
-装了哪个库才用得到哪座桥。所以只用 ta1 的服务不会背上 shapely/casadi。
+`scene_io` 里的 `to_ta1_request()` 是**任务包装配**；`to_ta1_cost_samplers()` 是旧的可选桥（函数体里才 import pp1/shapely）。ta1 自己读地形直接用 `ta1.terrain`，不需要这座桥，也不会背上 shapely/casadi。
 
 ---
 
@@ -89,7 +88,7 @@ ta1 ◄────────── 互不 import ─────────�
 | 磁盘 | ≥ 1 GB | 建筑数据 + 场产物 |
 | 网络 | 首次装依赖需要 | 之后离线可跑 |
 
-> 只用 `ta1`（不规划路径）：无地形时只要 `numpy`，1 核笔记本也能跑；要 ta1 自己读世界地形再装 `[terrain]`（`pillow`/`pyshp`），仍不需要 pp1。
+> 只用 `ta1`（不规划路径）：直接装 `task_allocation1` 即可，地形读取已随包；无地形自动欧氏，仍不需要 pp1。
 
 ### 2.2 用 uv（推荐）
 
@@ -229,12 +228,13 @@ print(m.summary())
 ```python
 import scene_io
 import task_allocation1 as ta1
+from task_allocation1.terrain import load_world_terrain
 
 world = scene_io.load_world("data/worlds/lasa_chengguan")
 m = scene_io.load_mission("data/missions/lasa_demo_001", world=world)
 
-# 默认距离口径 = vertical_section：需要地面高程 + 建筑屋顶包络两个采样器
-ground_z, obstacle_top_z = scene_io.to_ta1_cost_samplers(world)
+# 默认距离口径 = vertical_section：ta1 自己读世界地形/建筑
+ground_z, obstacle_top_z = load_world_terrain("data/worlds/lasa_chengguan").samplers()
 res = ta1.allocate(scene_io.to_ta1_request(
     m, ground_z=ground_z, obstacle_top_z=obstacle_top_z,
 ))
@@ -261,7 +261,7 @@ home_return_ok = True   feasible = True
 
 同巢不变量：每条非空航次 `end_nest_id == start_nest_id == uav.nest_id`。`path_m` 只是代理航程，**不是交付值**。
 
-配置、结果字段、距离尺子（默认 `vertical_section` / 无地形显式 `euclid3d`）见 `1怎么用-ta1算法.md` §3–§5；这里只保留跑通用的最小调用。
+配置、结果字段、距离尺子（有地形走 `vertical_section`，无地形自动 `euclid3d`）见 `1怎么用-ta1算法.md` §3–§5；这里只保留跑通用的最小调用。
 
 ## 7. 展开为航段（**起降不进 pp1**）
 

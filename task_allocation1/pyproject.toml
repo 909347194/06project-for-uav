@@ -6,15 +6,8 @@ readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "numpy>=1.26",        # DE 种群矩阵 / 代价矩阵唯一计算底子
-]
-
-[project.optional-dependencies]
-# 本包核心是纯计算：无服务壳、无 Web 框架依赖，距离口径由调用方注入。
-# 需要 ta1 自己读 GeoTIFF / Shapefile 时安装 terrain 额外依赖；不装也能用
-# numpy 数组或调用方自己的采样器。
-terrain = [
-    "pillow>=10",
-    "pyshp>=2.3",
+    "pillow>=10",         # 读 GeoTIFF DEM
+    "pyshp>=2.3",         # 读 Shapefile 建筑
 ]
 
 [build-system]
