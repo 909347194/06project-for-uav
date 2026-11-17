@@ -29,3 +29,6 @@ artifacts/
 .vscode/
 .idea/
 .DS_Store
+
+# 本地实验目录（只保留在本机）
+/path_planning2/
