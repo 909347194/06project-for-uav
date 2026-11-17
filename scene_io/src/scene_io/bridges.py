@@ -158,8 +158,7 @@ def check_world_with_pp1(world: World) -> dict[str, Any]:
         round(world.frame.lon0, 9), round(world.frame.lat0, 9),
         round(world.frame.lat_reference, 9))
 
-    pp1_digest = dataset_digest({"root": str(world.root),
-                                 "with_dem": world.dem_path is not None})
+    pp1_digest = dataset_digest(world.world_kwargs())
     return {
         "frame_ok": same,
         "digest_ok": world.dataset_digest == pp1_digest,

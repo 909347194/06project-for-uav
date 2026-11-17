@@ -19,7 +19,8 @@
 │  ├─ worlds\guangzhou\  # 世界：region + building(5 个 shp 图层) + dem.tif + world.json（frame 真源）
 │  ├─ missions\demo_001\ # 任务包：mission/nests/uavs/tasks（经纬度真源）+ baseline
 │  └─ contracts\         # 两库互操作夹具（契约漂移测试用）
-├─ docs\                 # 四份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 + 两库各一份全量配置示例（json / jsonc）
+├─ docs\                 # 五份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 完整流程 Tutorial
+│                        #   + 两库各一份全量配置示例（json / jsonc）+ examples/ 可执行配套
 ├─ artifacts\  (可选，自己建)  # 建场产物 <world_id>/<label>/（1.15 GB，跟世界走，不进版本库）
 └─ results\    (可选，自己建)  # 你的输出（实验/回归），按 <world_id>/<mission_id>/ 分层
 ```
@@ -40,6 +41,7 @@
 | `task_allocation1/README.md` | 同巢改造、算法三段、模块地图、验证实验、已知限制 | **开发者（ta1 维护）** |
 | `path_planning1/README.md` | 设计分层、算法主线、参数归属、结果契约、实测基线、扩展点 | **开发者（pp1 维护）** |
 | `docs/0数据准备与处理.md` | **两套数据分开讲**：世界/任务包三层结构、ta1 实体与任务包格式、pp1 世界目录与格式（GeoJSON/Shapefile/DEM/禁飞区）、共用坐标口径、自检清单 | 数据工程 / 后端 |
+| `docs/4完整流程Tutorial.md` | **从 0 跑通全程**（拉萨市城关区）：包与目录说明、安装、配置、数据准备、ta1 → 展开航段 → pp1 → 回执复核、一键脚本、换城市清单 | **新人 / 联调第一篇看这个** |
 | `docs/1怎么用-ta1算法.md` | 装、最小调用、实体与配置、距离口径（`cost_config` 两档 + 参数表）、同巢口径、结果字段、独立验证 | 后端工程师 |
 | `docs/2怎么用-pp1算法.md` | 装、配 JSON、建全域场、请求、结果字段、失败码映射、批量/缓存/并发、自检 | 后端工程师 |
 | `scene_io/README.md` | 零依赖数据适配层：world/mission 加载、frame 校验、懒加载桥（pp1 世界入参 / ta1 请求 / ta1 切面采样器） | 数据工程 / 后端 |
@@ -102,7 +104,7 @@
 
 ```powershell
 uv sync --all-packages     # 根是 virtual workspace；缺这个 flag 装不到成员依赖
-uv run pytest              # 273 个用例：272 passed + 1 skipped（慢测默认跳过）
+uv run pytest              # 280 个用例：277 passed + 3 skipped（1 个慢测 + 2 个需 guangzhou shp 夹具）
 uv run ruff check .
 
 # 数据适配层：任务包 → ta1（零依赖加载 + frame 校验）

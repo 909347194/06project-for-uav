@@ -47,12 +47,15 @@ class CostProvider:
         return nest_key(nest_id, self.nest_offset)
 
     def _distance(self, a: Position, b: Position) -> float:
+        """按注入的口径取距离。
+
+        **不捕获异常、不回退欧氏**：口径错误必须暴露（见模块 docstring）。注入的
+        ``distance_fn`` 在某个坐标对上失败，说明采样器/数据有问题——悄悄换一把尺子
+        会让代价矩阵、航程约束、ETA 全部口径漂移，而结果看起来完全正常。要容错
+        请在注入的函数里自己处理，并把降级计数暴露给调用方。
+        """
         fn = self.distance_fn or euclidean3d
-        try:
-            return float(fn(a, b))
-        except (ValueError, TypeError, IndexError, OverflowError):
-            # 注入函数在特定坐标对上失败时退回欧氏，保持纯计算不中断
-            return float(euclidean3d(a, b))
+        return float(fn(a, b))
 
     def cost(self, id_a: int, id_b: int) -> float:
         """有向代价：pairwise 命中优先；否则按两端位置用 distance_fn 现算。"""

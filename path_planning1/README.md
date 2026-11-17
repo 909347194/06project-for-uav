@@ -72,7 +72,7 @@ core/       算法（只依赖 contract）            数据 → 全域场 → �
 
 - 依赖方向单向：`contract ← core`，禁止反向；服务壳不得长在 core 里。
 - 演示/出图脚本（参考项目里的 `experiments/`）不属于本发行版，也不属于库的对外 API；要跑就按 §9 的片段自己写一个入口。
-- 单文件上限由 `tests/test_pp1_layout.py` 强制：`contract/ ≤120` 行、`core/ ≤300` 行（现最大 `trajectory_optimization.py` 293，`params_config.py` 280，`city_loader.py` 273）。
+- 单文件上限由 `tests/test_pp1_layout.py` 强制：`contract/ ≤120` 行、`core/ ≤300` 行（现最大 `city_loader.py` 300，`trajectory_optimization.py` 293，`params_config.py` 280）。
 - 默认数值**只有一处**：`contract/defaults.py`（41 个常量）。其它模块只能引用；`tests/test_pp1_defaults.py` 逐项比对契约 dataclass 的默认值，写第二份会被抓。
 - 契约不承接 I/O：读文件的代码全在 `core/city_loader.py` / `core/city_dataset.py`。
 

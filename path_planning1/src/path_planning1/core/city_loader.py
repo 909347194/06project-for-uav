@@ -254,7 +254,12 @@ def load_buildings(
     """
     m_per_deg2 = frame.m_per_deg_lon * M_PER_DEG_LAT
     directory = Path(shp_dir)
-    files = sorted(directory.glob("*.shp")) + sorted(directory.glob("*.geojson"))
+    # 大小写不敏感：Windows/GIS 工具导出的 ``Residential.SHP`` / ``Block.GeoJSON`` 不能
+    # 静默消失（Linux glob 区分大小写）。楼悄悄少了 = 障碍图缺洞 = 规划“撞楼”，比报错严重得多。
+    entries = sorted(p for p in directory.iterdir()
+                     if p.is_file() and p.suffix.lower() in (".shp", ".geojson"))
+    files = [p for p in entries if p.suffix.lower() == ".shp"] + \
+            [p for p in entries if p.suffix.lower() == ".geojson"]
     out: list[Building] = []
     for path in files:
         if path.suffix.lower() == ".geojson":

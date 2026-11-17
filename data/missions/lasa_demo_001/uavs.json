@@ -1,0 +1,46 @@
+[
+  {
+    "id": 0,
+    "nest_id": 0,
+    "lon": 91.142,
+    "lat": 29.665,
+    "z_abs": 3665.33,
+    "speed": 15.0,
+    "remaining_range": 22000.0,
+    "max_time": 2400.0,
+    "status": "IDLE"
+  },
+  {
+    "id": 1,
+    "nest_id": 0,
+    "lon": 91.142,
+    "lat": 29.665,
+    "z_abs": 3665.33,
+    "speed": 15.0,
+    "remaining_range": 22000.0,
+    "max_time": 2400.0,
+    "status": "IDLE"
+  },
+  {
+    "id": 2,
+    "nest_id": 1,
+    "lon": 91.164,
+    "lat": 29.654,
+    "z_abs": 3682.05,
+    "speed": 12.0,
+    "remaining_range": 18000.0,
+    "max_time": 2000.0,
+    "status": "IDLE"
+  },
+  {
+    "id": 3,
+    "nest_id": 1,
+    "lon": 91.164,
+    "lat": 29.654,
+    "z_abs": 3682.05,
+    "speed": 12.0,
+    "remaining_range": 18000.0,
+    "max_time": 2000.0,
+    "status": "IDLE"
+  }
+]

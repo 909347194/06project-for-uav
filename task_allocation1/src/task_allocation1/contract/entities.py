@@ -25,8 +25,8 @@ class Task:
     arrival_time: float = 0.0
     status: TaskStatus = TaskStatus.PENDING
     meta: dict[str, Any] = field(default_factory=dict)
-    sequence_group: int | None = None
-    sequence_order: int = 0
+    sequence_group: int | None = None   # 预留：当前版本不消费
+    sequence_order: int = 0             # 预留：当前版本不消费
 
     @property
     def position(self) -> Position:

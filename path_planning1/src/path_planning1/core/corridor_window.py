@@ -121,7 +121,11 @@ def corridor_window(
 
     n_along = math.ceil((length + 2.0 * margin) / sx) + 1
     n_lateral = math.ceil(2.0 * lateral / sy) + 1
-    nz = round((alt_max_m - alt_min_m) / sz) + 1
+    # 竖向也用 ceil（不能用 round）：不整除时 round 会向下取整，窗口顶就低于飞行带
+    # 天花板，AGL 上限附近的合法点会被判成窗外/取到边缘 SDF。例 sz=3.2、带 10–120：
+    # 110/3.2=34.375 → round 34 → 顶 118.8 m < 120 m。默认 (4,4,2) 下 110/2 恰好整除，
+    # 基线不受影响；但 spacing_m 允许任意 sz ≥ 1e-3，这里必须与水平轴同口径。
+    nz = math.ceil((alt_max_m - alt_min_m) / sz) + 1
 
     # 斜栅格的角点 = 起点 - margin·u - lateral·normal（轴 0/1 就是 u/normal）
     corner = np.asarray(start_xy, dtype=float) - margin * u - lateral * normal

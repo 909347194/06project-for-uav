@@ -16,6 +16,9 @@ data/**/*.npz
 data/**/*.h5
 # 原始 shp（约 26 MB / 35 文件），本地有源数据即可，不进版本库
 data/worlds/*/building/
+# 例外：lasa_chengguan 的示例建筑是 GeoJSON（211 KB），docs/4 教程要用，进版本库
+!data/worlds/lasa_chengguan/building/
+!data/worlds/lasa_chengguan/building/*.geojson
 results/
 logs/
 *.log

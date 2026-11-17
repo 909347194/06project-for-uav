@@ -87,7 +87,9 @@ class BuildingPrisms:
     def min_clearance(self, path: np.ndarray, sample_step_m: float = 1.0) -> float:
         """沿路径折线最小的 3D 净空（米）；棱柱内部为 0。
 
-        ``search_radius_m`` 以内的值精确，附近什么都没有时返回该半径（含义"至少这么远"）。
+        **口径**：只在 ``search_radius_m`` 邻域内量，结果**一律截到该半径**；返回
+        ``search_radius_m`` 就是“至少这么远”（附近什么都没有 / 真实距离超过量程都报它）。
+        不能一部分报精确值、一部分报量程上限——那会让同一字段有两种语义，报表不可比。
         """
         return self.worst(path, sample_step_m)[0]
 
@@ -114,4 +116,6 @@ class BuildingPrisms:
         dz = np.where((z >= lo) & (z <= hi), 0.0, np.minimum(np.abs(z - lo), np.abs(z - hi)))
         dist = np.sqrt(d2**2 + dz**2)
         k = int(np.argmin(dist))
-        return float(dist[k]), pts[hit_pt[k]]
+        # bbox 命中但真实几何距离可能 > search_radius_m（L 形/大 footprint 的 bbox 近、
+        # 几何远，老城里很常见）。量程外的值一律截到量程上限，与“无命中报量程”同口径。
+        return min(float(dist[k]), self.search_radius_m), pts[hit_pt[k]]

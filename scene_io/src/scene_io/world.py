@@ -120,10 +120,19 @@ class World:
         return (self.root / name) if name else None
 
     def world_kwargs(self, **overrides: Any) -> dict[str, Any]:
-        """给 pp1 的 ``world`` 段（纯 dict，不 import pp1）。"""
+        """给 pp1 的 ``world`` 段（纯 dict，不 import pp1）。
+
+        ``nofly_path`` 给的是**相对世界根目录的名字**，不是拼好 root 的路径：
+        pp1 的 ``load_city`` 会自己 ``root / nofly_path``，再拼一次就变成
+        ``<root>/<root>/nofly.geojson`` 这种重复路径。名字也让 ``dataset_digest``
+        只看相对路径（与 ``check_world_with_pp1`` 同一口径），产物可跨机器。
+        """
         out: dict[str, Any] = {"root": str(self.root), "with_dem": self.dem_path is not None}
         if self.nofly_path is not None:
-            out["nofly_path"] = str(self.nofly_path)
+            try:
+                out["nofly_path"] = self.nofly_path.relative_to(self.root).as_posix()
+            except ValueError:                       # 显式给了根目录外的绝对路径
+                out["nofly_path"] = str(self.nofly_path)
         out.update(overrides)
         return out
 

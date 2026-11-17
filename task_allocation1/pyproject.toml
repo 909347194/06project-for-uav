@@ -1,6 +1,6 @@
 [project]
 name = "uav-task-allocation1"
-version = "0.1.0"
+version = "0.2.0"
 description = "task_allocation1：多机巢多无人机协同任务分配纯计算内核（同巢起降：从哪个巢起飞就返回哪个巢）"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"

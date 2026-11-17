@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "mission_id": "lasa_demo_001",
+  "world_id": "lasa_chengguan",
+  "frame_hash": "0af4e4fb592e",
+  "current_time": 0.0,
+  "time_base": "relative_s",
+  "z_basis": "absolute_enu_z",
+  "solver": {
+    "pop_size": 24,
+    "max_generations": 60,
+    "seed": 0
+  },
+  "problem": {
+    "default_service_time": 30.0
+  },
+  "cost": {
+    "model": "euclid3d"
+  }
+}

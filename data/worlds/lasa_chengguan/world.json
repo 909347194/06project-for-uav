@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "world_id": "lasa_chengguan",
+  "frame": {
+    "lon0": 91.136,
+    "lat0": 29.65,
+    "lat_ref": 29.661,
+    "frame_hash": "0af4e4fb592e"
+  },
+  "elevation": {
+    "basis": "absolute_enu_z",
+    "unit": "m"
+  },
+  "contents": {
+    "region": "region.geojson",
+    "buildings": "building",
+    "dem": "dem.tif",
+    "nofly": "nofly.geojson"
+  },
+  "dataset_digest": "e9cebbed678f"
+}

@@ -35,6 +35,15 @@ def _patch(path: Path, fn) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
+# 下面两条对拍用例需要 data/worlds/guangzhou/building/ 的 5 个 shp（约 26 MB，按
+# .gitignore 排除、需自备）。缺外部夹具时**跳过而不是红**：库本身的契约没坏，
+# 只是数据不在；带上数据后它们照常跑。其余用例只读 world.json / 任务包，不依赖它。
+need_guangzhou_buildings = pytest.mark.skipif(
+    not (WORLD_DIR / "building").is_dir(),
+    reason="缺 data/worlds/guangzhou/building/（shp 图层按 .gitignore 排除，需自备）",
+)
+
+
 # ---- 解耦：两库各自独立，本包不绑架任何一方 ---------------------------------
 def test_package_has_no_runtime_dependencies():
     text = (REPO / "scene_io" / "pyproject.toml").read_text(encoding="utf-8")
@@ -63,6 +72,7 @@ def test_world_frame_hash_matches_recorded(world):
     assert world.frame_hash == scene_io.frame_hash(world.frame) == "59ccbad38a06"
 
 
+@need_guangzhou_buildings
 def test_scene_io_frame_matches_pp1(world):
     """零依赖实现与 pp1 的 LocalFrame 必须同口径（对拍，不共享代码）。"""
     report = scene_io.check_world_with_pp1(world)
@@ -102,6 +112,7 @@ def test_mission_bridges_to_ta1_and_matches_baseline(world, mission_copy):
         assert tour.is_home_return(), f"机 {tour.uav_id} 没回起飞巢"
 
 
+@need_guangzhou_buildings
 def test_mission_bridges_to_ta1_with_vertical_section(world, mission_copy):
     """切面尺子的两座桥：采样器现造 + cost_config 透传（缺 pp1/shapely 就跳过）。"""
     pytest.importorskip("path_planning1")

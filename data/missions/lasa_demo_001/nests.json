@@ -1,0 +1,20 @@
+[
+  {
+    "id": 0,
+    "name": "nest_chengguan_north",
+    "lon": 91.142,
+    "lat": 29.665,
+    "z_abs": 3665.33,
+    "capacity": 2,
+    "available": true
+  },
+  {
+    "id": 1,
+    "name": "nest_chengguan_south",
+    "lon": 91.164,
+    "lat": 29.654,
+    "z_abs": 3682.05,
+    "capacity": 2,
+    "available": true
+  }
+]

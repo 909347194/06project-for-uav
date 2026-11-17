@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "lasa_chengguan_core"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              91.136,
+              29.65
+            ],
+            [
+              91.172,
+              29.65
+            ],
+            [
+              91.172,
+              29.672
+            ],
+            [
+              91.136,
+              29.672
+            ],
+            [
+              91.136,
+              29.65
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

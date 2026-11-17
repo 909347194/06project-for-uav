@@ -96,7 +96,10 @@ def test_trajectory_stays_inside_half_width_even_if_path_pokes_out() -> None:
         footprint=((180.0, -30.0), (220.0, -30.0), (220.0, 30.0), (180.0, 30.0)),
         height_m=200.0,
     )
-    res = _plan([wall], ratio=0.25, spacing=(6.0, 6.0, 6.0))
+    # sz=11：让 (agl_max−agl_min)/sz = 110/11 = 10 恰好整除，窗口 nz 不受取整方式影响。
+    # 用例只考走廊语义（半宽是交付物约束），不考窗口取整——那件事由
+    # test_pp1_corridor_window.py 单独守（以前 sz=6 时窗口顶会被 round 掉 2 m）。
+    res = _plan([wall], ratio=0.25, spacing=(6.0, 6.0, 11.0))
     assert res.trajectory is not None, res.diagnostics.warnings
     half = res.stats.corridor_width_m / 2.0
     assert half == pytest.approx(50.0, abs=1e-6)
@@ -118,7 +121,8 @@ def test_corridor_too_narrow_for_clearance_reports_roi_no_path() -> None:
         footprint=((180.0, -30.0), (220.0, -30.0), (220.0, 30.0), (180.0, 30.0)),
         height_m=200.0,
     )
-    res = _plan([wall], ratio=0.2, spacing=(6.0, 6.0, 6.0))
+    # sz=11 同上：这条用例只考“走廊半宽是语义边界”，不考窗口取整。
+    res = _plan([wall], ratio=0.2, spacing=(6.0, 6.0, 11.0))
     assert res.failure_code is FailureCode.ROI_NO_PATH
     assert res.status is Status.INFEASIBLE and res.path_enu is None
     assert "走廊半宽 40.0 m" in res.message and "margin_m 只垫栅格" in res.message

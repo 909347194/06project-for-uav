@@ -15,10 +15,12 @@ from . import defaults as D
 
 @dataclass
 class ConstraintConfig:
-    """每类约束独立开关与惩罚权重（对齐论文 §5(4)）。
+    """约束开关与惩罚权重（对齐论文 §5(4)）。
 
-    ``home_return`` 是本库新增的硬约束：终点机巢必须等于起飞机巢；恒开，
-    不允许通过配置关闭（同巢起降是唯一口径）。
+    ``home_return`` 是新增硬约束：终点机巢恒=起飞巢，只读恒 True、无关闭入口。
+    **⚠ 真正在判的只有 7 个开关**：``duplicate_task`` / ``range`` / ``endurance`` /
+    ``time_window`` / ``nest_capacity`` / ``nest_availability`` / ``end_nest_reachability``；
+    其余（``require_*`` / ``sequence`` / ``sync`` 与全部 ``w_*``）**预留、不生效**。
     """
 
     duplicate_task: bool = True
@@ -56,7 +58,9 @@ class ConstraintConfig:
 
 @dataclass
 class ProblemConfig:
-    """模型开关与四层适应度权重。"""
+    """模型开关与四层适应度权重。⚠ 预留（不消费）：``allow_unassigned`` /
+    ``allow_idle_uav`` / ``late_reward_decay_seconds`` / ``coverage_audit``。
+    """
 
     allow_unassigned: bool = True
     allow_idle_uav: bool = True
@@ -85,7 +89,9 @@ class ProblemConfig:
 
 @dataclass
 class SolverConfig:
-    """求解预算与开关：选机 / DMDE / 修复链 / 交付后 polish。"""
+    """求解预算与开关：选机 / DMDE / 修复链 / 交付后 polish。⚠ 预留（不消费）：
+    ``coverage_first`` / ``demand_serve_margin`` / ``polish_eps``（只用 ``cost_polish_eps``）。
+    """
 
     pop_size: int = D.DEFAULT_POP_SIZE
     max_generations: int = D.DEFAULT_MAX_GENERATIONS

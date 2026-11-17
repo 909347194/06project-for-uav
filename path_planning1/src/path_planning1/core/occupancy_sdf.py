@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -33,8 +34,9 @@ def build_occupancy(
     **保守膨胀**（这一条是净空口径的地基，不要改成"裸格心判据"）：
     每个 footprint 先 ``buffer(半格对角线)``、竖直区间各外扩 ``半格`` 再判格心。理由两个：
 
-    * **整栋漏检**：只测格心时，比格距还窄的房子可能一个格心都不落进去。膨胀半个格对角线后，
-      任何棱柱至少含一个格心（膨胀后区域半径 ≥ 格点最大空隙 ``√2·s/2``），漏检在数学上不可能发生。
+    * **整栋漏检**：只测格心时，比格距还窄的房子可能一个格心都不落进去。膨胀后区域的
+      半径 ≥ 格点最大空隙 ``0.5·√(sx²+sy²)``（名义半径已按 buffer 的内接多边形
+      校正，见下面 ``buf_r``），任何棱柱至少含一个格心，漏检在数学上不可能发生。
     * **障碍被缩**：裸格心判据让障碍最多"缩"半个格，SDF 于是比真几何乐观；膨胀之后障碍
       只大不小，SDF 变成保守下界，净空不会被虚报。
 
@@ -52,6 +54,12 @@ def build_occupancy(
     a0, a1 = grid.axes_xy
     half_xy = 0.5 * float(np.hypot(sx, sy))     # 半格对角线：格心到格内任一点的上界
     half_z = 0.5 * sz
+    # shapely 的 buffer 多边形是**内接**于半径 r 的圆（顶点在圆上），边到中心的最近距离
+    # 只有 r·cos(π/(4·quad_segs))。要让“膨胀后区域半径 ≥ 格点最大空隙 half_xy”真正成立，
+    # 名义半径必须再放大 1/cos(π/(4·quad_segs))；否则 quad_segs=2 时对角方向仍差约 8%，
+    # 窄长碎片（min_area_m2 只限面积不限宽度）落在格心最大空隙处仍可能整栋漏进栅格。
+    _BUF_QUAD_SEGS = 2
+    buf_r = half_xy / math.cos(math.pi / (4.0 * _BUF_QUAD_SEGS))
     occ = np.zeros((nx, ny, nz), dtype=bool)
     prisms: list[tuple[tuple[tuple[float, float], ...], float, float]] = [
         (b.footprint, b.base_z_m, b.z_top_m) for b in buildings
@@ -68,7 +76,7 @@ def build_occupancy(
             poly = Polygon(footprint)
             if poly.is_empty:
                 continue
-            poly = poly.buffer(half_xy, quad_segs=2)
+            poly = poly.buffer(buf_r, quad_segs=_BUF_QUAD_SEGS)
             if poly.is_empty:
                 continue
             minx, miny, maxx, maxy = poly.bounds
