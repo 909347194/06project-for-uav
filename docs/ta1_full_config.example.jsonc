@@ -25,20 +25,14 @@
     "participating_policy": "demand",
     // 默认 0.5；demand 策略把"续航能覆盖任务"的半径取 remaining_range × 该值
     "demand_range_factor": 0.5,
-    // 保留键（当前不参与计算，写上不报错也无效果）
-    "demand_serve_margin": 0.95,
     // 默认 null；参与机数上限。null = 不截断；设了就按策略排序取前 N
     "max_participating_uavs": null,
     // 默认 6；解码修复链最多几轮
     "repair_max_passes": 6,
-    // 保留键（当前不参与计算）
-    "coverage_first": true,
     // 默认 true；交付后局部优化（跨机 relocate/swap + 组内 2-opt，四道门）总开关
     "polish_enabled": true,
     // 默认 30；局部优化轮数
     "polish_rounds": 30,
-    // 默认 1e-6；目标值改善小于它就提前停
-    "polish_eps": 1e-6,
     // 默认 1.0（米）；航程改善小于它就不算"变好"
     "cost_polish_eps": 1.0,
     // 默认 0.4；反映射里的改派扰动幅度
@@ -51,10 +45,6 @@
 
   // ===== 评价口径（四层适应度 + 约束开关）=====
   "problem": {
-    // 保留键（当前不参与计算）
-    "allow_unassigned": true,
-    // 保留键（当前不参与计算）
-    "allow_idle_uav": true,
     // 默认 1.0；惩罚权重，只在 w_violation 为 null 时用于派生迟到权重
     "w_penalty": 1.0,
     // 默认 0.01（每秒）；迟到软计价。改大 = 更怕迟到
@@ -66,29 +56,16 @@
     // 默认 10.0；硬违约系数 κ（w_hard_violation 为 null 时生效）
     "hard_violation_kappa": 10.0,
 
-    // 每类约束的独立开关与惩罚权重；false = 该类违约不计入适应度
+    // 7 类硬约束的独立开关；false = 该类不参与可行性判定
     // 注意：home_return（终点恒=起飞巢）不在配置里，恒开、不可关
     "constraints": {
       "duplicate_task": true,        // 同一任务被两架机重复执行
-      "require_all_tasks": true,     // 任务必须被谁执行（覆盖门禁）
-      "require_no_idle": true,       // 有可用机却完全不出动
       "range": true,
       "endurance": true,
       "time_window": true,           // latest 截止
-      "sequence": true,              // earliest 前到会等，不算违约
-      "sync": true,
       "nest_capacity": true,         // 巢归属机数超 capacity
       "nest_availability": true,     // available=false 的巢
-      "end_nest_reachability": true,
-      "w_misc": 1.0,
-      "w_range": 1.0,
-      "w_endurance": 1.0,
-      "w_window": 1.0,
-      "w_seq": 1.0,
-      "w_sync": 1.0,
-      "w_nest_capacity": 1.0,
-      "w_nest_availability": 1.0,
-      "w_end_nest_reachability": 1.0
+      "end_nest_reachability": true
     },
 
     // 默认 0.1；适应度里航程的权重（λ·航程），主要起 tie-break 作用，排序主判据仍是完成与违约
@@ -97,10 +74,6 @@
     "big_m": null,
     // 默认 0.0（秒）；每个任务的服务时长，影响到达/迟到与 ETA
     "default_service_time": 0.0,
-    // 保留键（当前不参与计算）
-    "late_reward_decay_seconds": null,
-    // 保留键（覆盖审计目前恒执行，这个开关未接到 core）
-    "coverage_audit": true,
     // 默认 null；跳过任务的权重。null = 与 hard_weight 同量级
     "w_skip_violation": null,
     // 默认 0.0（秒）；规划起始时刻。AllocateRequest.current_time 非 null 时以后者为准

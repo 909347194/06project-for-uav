@@ -202,19 +202,19 @@ ta1 的配置在**任务包** `mission.json` 的 `solver` / `problem` / `cost` �
 本教程设 `1500` → `pad_m = 244` → 场 255 MB、建场 17 s。设成 `3000` 会让 pad 到 ~392 m、
 场体积涨到约 2.5 倍。**够用就好**（它只要 ≥ 你最长的一条航段）。
 
-### 3.2 哪些配置**真的生效**（重要）
+### 3.2 配置面（只有这些字段）
 
-ta1 的配置面比实际消费的宽。下表是**唯一权威清单**：
+ta1 的配置面就是下表这些；表外键会被 `from_dict` 忽略（不报错，也不生效）：
 
-| 配置 | 真正生效 | **预留（写了没用）** |
+| 配置 | 全部字段（默认） | 作用 |
 |---|---|---|
-| `ConstraintConfig` | `duplicate_task` `range` `endurance` `time_window` `nest_capacity` `nest_availability` `end_nest_reachability` | `require_all_tasks` `require_no_idle` `sequence` `sync` 及全部 `w_*` 权重 |
-| `ProblemConfig` | `lambda_cost` `w_violation` `hard_violation_kappa` `default_service_time` `current_time` `big_m` + 三个可选权重覆盖 | `allow_unassigned` `allow_idle_uav` `late_reward_decay_seconds` `coverage_audit` |
-| `SolverConfig` | 其余全部 | `coverage_first` `demand_serve_margin` `polish_eps` |
-| `Task` | `id` `x/y/z` `reward` `earliest` `latest` | `sequence_group` `sequence_order` |
+| `ConstraintConfig` | `duplicate_task` / `range` / `endurance` / `time_window` / `nest_capacity` / `nest_availability` / `end_nest_reachability`（均 `True`） | 7 类硬约束开关 |
+| `ProblemConfig` | `w_penalty=1.0` `w_violation=0.01` `w_hard_violation=None` `w_range_excess=None` `hard_violation_kappa=10` `w_skip_violation=None` `lambda_cost=0.1` `big_m=None` `default_service_time=0` `current_time=0` + `constraints` | 评价权重与规划游标 |
+| `SolverConfig` | `pop_size=50` `max_generations=200` `zeta=3` `extinction_delta=None` `seed=0` `participating_policy="demand"` `demand_range_factor=0.5` `max_participating_uavs=None` `repair_max_passes=6` `polish_enabled=True` `polish_rounds=30` `cost_polish_eps=1.0` `assign_perturb_factor=0.4` `tour_perturb_factor=0.5` `perturb_temp_gate=0.1` | 搜索预算、选机、局部优化 |
+| `CostConfig` | `model="vertical_section"` `agl_min_m=10` `agl_max_m=120` `clearance_m=5` `climb_rate=0.15` `num_samples=200` `over_band_mode="allow"` | 距离尺子，见 §6.3 |
 
-> 同巢起降约束（`home_return`）**恒开、只读**，没有关闭入口。
-> 需要"任务 A 必须在任务 B 之前"或"多机同步到达"，请在上层拆成多次调用，**别指望 `sequence`/`sync`**。
+> 同巢起降（`home_return`）**恒开、只读**，没有关闭入口。
+> 跨任务先后依赖与多机协同不在本内核契约内，需要就在上层拆成多次调用。
 
 pp1 的配置**每一项都生效**（有 `test_pp1_defaults.py` 逐项守）。
 

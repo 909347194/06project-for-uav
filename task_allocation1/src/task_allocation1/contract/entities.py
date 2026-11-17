@@ -1,7 +1,7 @@
 """实体：Task / UAV / Nest。纯数据，可在内存直接构造，不碰任何 I/O。
 
-字段口径对齐参考项目 ``common/types.py``，保留完整语义（时间窗、异构性能、
-服务时间等），供上层滚动服务复用；本库单周期内核消费其子集。
+字段口径对齐参考项目 ``common/types.py``，但只保留本内核消费的子集：
+时间窗、异构性能、服务时间；不提供时序组字段。
 """
 
 from __future__ import annotations
@@ -25,8 +25,6 @@ class Task:
     arrival_time: float = 0.0
     status: TaskStatus = TaskStatus.PENDING
     meta: dict[str, Any] = field(default_factory=dict)
-    sequence_group: int | None = None   # 预留：当前版本不消费
-    sequence_order: int = 0             # 预留：当前版本不消费
 
     @property
     def position(self) -> Position:

@@ -42,7 +42,6 @@ def test_solver_config_defaults_match_constants() -> None:
     assert s.seed == D.DEFAULT_SEED
     assert s.participating_policy == D.DEFAULT_PARTICIPATING_POLICY
     assert s.repair_max_passes == D.DEFAULT_REPAIR_MAX_PASSES
-    assert s.polish_eps == D.DEFAULT_POLISH_EPS
     assert s.cost_polish_eps == D.DEFAULT_COST_POLISH_EPS
     assert s.assign_perturb_factor == D.DEFAULT_ASSIGN_PERTURB_FACTOR
     assert s.tour_perturb_factor == D.DEFAULT_TOUR_PERTURB_FACTOR

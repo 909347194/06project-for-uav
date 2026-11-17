@@ -35,7 +35,6 @@ DEFAULT_PERTURB_TEMP_GATE = 0.1
 # —— 参与机选择 -----------------------------------------------------------
 DEFAULT_PARTICIPATING_POLICY = "demand"  # cheapest / first / marginal / demand
 DEFAULT_DEMAND_RANGE_FACTOR = 0.5
-DEFAULT_DEMAND_SERVE_MARGIN = 0.95
 
 # —— 解码修复链 -----------------------------------------------------------
 DEFAULT_REPAIR_MAX_PASSES = 6
@@ -50,7 +49,6 @@ DEFAULT_CURRENT_TIME = 0.0
 
 # —— 交付后局部优化（四道门）---------------------------------------------
 DEFAULT_POLISH_ROUNDS = 30
-DEFAULT_POLISH_EPS = 1e-6
 DEFAULT_COST_POLISH_EPS = 1.0
 
 # —— 距离代价口径（分配阶段的代理尺子，见 ``contract/cost_config.py``）------

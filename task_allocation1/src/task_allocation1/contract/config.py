@@ -2,6 +2,9 @@
 
 只放数据类与 ``from_dict``（缺省即默认、未知键忽略）；不实现任何算法、不读文件。
 默认值唯一来源见 ``defaults.py``，本文件引用而不复制。
+
+**契约边界**：本库是单周期、同巢起降、单航段分配内核，只判 7 类硬约束
+（+ 恒开的同巢约束），不存在时序 / 同步 / 覆盖开关类配置。
 """
 
 from __future__ import annotations
@@ -15,35 +18,18 @@ from . import defaults as D
 
 @dataclass
 class ConstraintConfig:
-    """约束开关与惩罚权重（对齐论文 §5(4)）。
+    """7 类硬约束的独立开关。
 
-    ``home_return`` 是新增硬约束：终点机巢恒=起飞巢，只读恒 True、无关闭入口。
-    **⚠ 真正在判的只有 7 个开关**：``duplicate_task`` / ``range`` / ``endurance`` /
-    ``time_window`` / ``nest_capacity`` / ``nest_availability`` / ``end_nest_reachability``；
-    其余（``require_*`` / ``sequence`` / ``sync`` 与全部 ``w_*``）**预留、不生效**。
+    ``home_return`` 是恒开硬约束：终点机巢恒 = 起飞巢，只读恒 True、无关闭入口。
     """
 
     duplicate_task: bool = True
-    require_all_tasks: bool = True
-    require_no_idle: bool = True
     range: bool = True
     endurance: bool = True
     time_window: bool = True
-    sequence: bool = True
-    sync: bool = True
     nest_capacity: bool = True
     nest_availability: bool = True
     end_nest_reachability: bool = True
-
-    w_misc: float = 1.0
-    w_range: float = 1.0
-    w_endurance: float = 1.0
-    w_window: float = 1.0
-    w_seq: float = 1.0
-    w_sync: float = 1.0
-    w_nest_capacity: float = 1.0
-    w_nest_availability: float = 1.0
-    w_end_nest_reachability: float = 1.0
 
     @property
     def home_return(self) -> bool:
@@ -58,12 +44,8 @@ class ConstraintConfig:
 
 @dataclass
 class ProblemConfig:
-    """模型开关与四层适应度权重。⚠ 预留（不消费）：``allow_unassigned`` /
-    ``allow_idle_uav`` / ``late_reward_decay_seconds`` / ``coverage_audit``。
-    """
+    """评价权重与惩罚参数（无覆盖 / 选择性开关）。"""
 
-    allow_unassigned: bool = True
-    allow_idle_uav: bool = True
     w_penalty: float = D.DEFAULT_W_PENALTY
     w_violation: float | None = D.DEFAULT_W_VIOLATION
     w_hard_violation: float | None = None
@@ -73,8 +55,6 @@ class ProblemConfig:
     lambda_cost: float = D.DEFAULT_LAMBDA_COST
     big_m: float | None = None
     default_service_time: float = D.DEFAULT_DEFAULT_SERVICE_TIME
-    late_reward_decay_seconds: float | None = None
-    coverage_audit: bool = True
     w_skip_violation: float | None = None
     current_time: float = D.DEFAULT_CURRENT_TIME
 
@@ -89,9 +69,7 @@ class ProblemConfig:
 
 @dataclass
 class SolverConfig:
-    """求解预算与开关：选机 / DMDE / 修复链 / 交付后 polish。⚠ 预留（不消费）：
-    ``coverage_first`` / ``demand_serve_margin`` / ``polish_eps``（只用 ``cost_polish_eps``）。
-    """
+    """求解预算与开关：选机 / DMDE / 修复链 / 交付后 polish。"""
 
     pop_size: int = D.DEFAULT_POP_SIZE
     max_generations: int = D.DEFAULT_MAX_GENERATIONS
@@ -100,13 +78,10 @@ class SolverConfig:
     seed: int | None = D.DEFAULT_SEED
     participating_policy: str = D.DEFAULT_PARTICIPATING_POLICY
     demand_range_factor: float = D.DEFAULT_DEMAND_RANGE_FACTOR
-    demand_serve_margin: float = D.DEFAULT_DEMAND_SERVE_MARGIN
     max_participating_uavs: int | None = None
     repair_max_passes: int = D.DEFAULT_REPAIR_MAX_PASSES
-    coverage_first: bool = True
     polish_enabled: bool = True
     polish_rounds: int = D.DEFAULT_POLISH_ROUNDS
-    polish_eps: float = D.DEFAULT_POLISH_EPS
     cost_polish_eps: float = D.DEFAULT_COST_POLISH_EPS
     assign_perturb_factor: float = D.DEFAULT_ASSIGN_PERTURB_FACTOR
     tour_perturb_factor: float = D.DEFAULT_TOUR_PERTURB_FACTOR
