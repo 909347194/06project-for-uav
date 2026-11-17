@@ -14,7 +14,7 @@
 | 核心改造 | **终点机巢恒 = 起飞巢**（`end_nest_id == start_nest_id == uav.nest_id`）；删掉异巢降落 / 最小费用流，返航代价照常计入航程与目标 |
 | 输入 | 内存中的 `tasks` / `uavs` / `nests` + `cost_config`（或 `distance_fn`）+ 配置；没有任何文件 I/O |
 | 距离尺子 | `CostConfig` 两档：`vertical_section`（默认，垂直切面；飞行带 `agl_min/agl_max`、净空 `clearance_m`、爬升率 `climb_rate`、采样 `num_samples` 全可配；有地形时注入采样器）/ `euclid3d`（三维直线，无地形自动） |
-| 输出 | `AllocateResult`：`solution.tours`（每航次的任务序列+终点巢）、`executed_task_ids`、`metrics_dict()`、`home_return_ok` |
+| 输出 | `AllocateResult`：`solution.tours`（每航次的任务序列+终点巢）、`executed_task_ids`、`metrics_dict()`、`home_return_ok`；机数两个口径分开：`n_participating_uavs`（进场 K）/ `n_active_uavs`（实际出动架次） |
 | 算法三段 | ① DMDE（代价空间差分 + 温度退火反映射）② 修复链（合并/航程修复/改派/覆盖补全/时间窗重排）③ 局部优化（跨机 relocate/swap + 组内 2-opt，四道门） |
 | 口径 | 完成是约束、成本是目标；适应度 `f = W_hard·n_hard + w_exc·超程 + W_skip·n_skip + w_late·迟到 + λ·航程`（覆盖门禁，F1 只作事后指标） |
 | 可复现 | 同一个 `SolverConfig.seed` 逐位可复现；随机性单通道 `np.random.default_rng(seed)` |
@@ -36,7 +36,8 @@ req = ta1.AllocateRequest(
 res = ta1.allocate(req)
 
 res.solution.executed_task_ids   # 本周期交付哪些任务
-res.solution.tours               # 每架机的航次：task_ids + end_nest_id
+res.solution.tours               # 每个进场机的航次（task_ids 可能为空 = 闲置）
+res.n_active_uavs                # 实际出动架次（task_ids 非空的航次数）；≠ n_participating_uavs
 res.home_return_ok                # True：每条非空航次都返回起飞巢
 res.metrics_dict()                # 扁平指标，供上层直接序列化
 ```

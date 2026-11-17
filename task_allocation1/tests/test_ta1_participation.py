@@ -62,3 +62,15 @@ def test_one_uav_can_carry_multiple_tasks() -> None:
     assert res.model_type == ta1.ModelType.SRP
     counts = [len(t.task_ids) for t in res.solution.tours if t.task_ids]
     assert max(counts) >= 2
+
+
+@pytest.mark.parametrize("n_tasks,n_uavs", [(1, 3), (2, 5), (5, 5), (6, 4), (10, 3)])
+def test_participating_vs_active_are_separate(n_tasks: int, n_uavs: int) -> None:
+    """``n_participating`` 是进场数，``n_active_uavs`` 才是实际出动架次。"""
+    res = ta1.allocate(_req(n_tasks, n_uavs))
+    m = res.metrics_dict()
+    active = sum(1 for t in res.solution.tours if t.task_ids)
+    assert m["n_participating"] == len(res.participating_uav_ids) == res.n_participating_uavs
+    assert m["n_active_uavs"] == active == res.n_active_uavs
+    assert res.n_active_uavs <= res.n_participating_uavs <= n_uavs
+    assert res.n_active_uavs >= 1 and res.n_active_uavs <= n_tasks
