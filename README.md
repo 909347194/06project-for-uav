@@ -29,8 +29,8 @@
 **两库各自独立**：互不 import，各自能单独安装、单独上线（只用分配就只装 ta1）。
 `import task_allocation1 as ta1` / `import path_planning1 as pp1` 是各自唯一门面。
 对接靠**数据契约**：同一套 ENU 米、同一个 `frame_hash`、同一份 `world.json` +
-`data/contracts/plan_request_example.json` 的契约测试。`scene_io` 是可选的数据适配层，
-`dependencies = []`，不 import 这两个库。
+`data/contracts/plan_request_example.json` 的契约测试。ta1 自带可选 `terrain` 直接读世界地形；
+`scene_io` 只是另一条可选的数据适配层，`dependencies = []`，不 import 这两个库。
 
 ## 文档分工（按读者）
 
@@ -44,7 +44,7 @@
 | `docs/3任务分配-路径规划对接.md` | **只讲对接**：两库关系、对接三步、请求/回执字段、失败回环、延迟预算、验收清单 | 上层 / 联调 |
 | `docs/4完整流程Tutorial.md` | **完整使用**（拉萨市城关区）：安装、配置、校验、ta1 → 展开航段 → pp1 → 回执复核、一键脚本；数据格式回指 0 | 新人 / 联调 |
 | `docs/5交付说明-给后端.md` | **接之前必读**：交付状态、6 条接入要点、**已知问题（K≤N-1 / DEM 栅格类型 / 合成数据）**、服务壳职责、联调验收清单 | 后端 / 联调 |
-| `scene_io/README.md` | 零依赖数据适配层：world/mission 加载、frame 校验、懒加载桥（pp1 世界入参 / ta1 请求 / ta1 切面采样器） | 数据工程 / 后端 |
+| `scene_io/README.md` | 零依赖数据适配层：world/mission 加载、frame 校验、懒加载桥（pp1 世界入参 / ta1 请求 / ta1 切面采样器）；ta1 的 `terrain` 子模块可替代切面采样器这一桥 | 数据工程 / 后端 |
 
 算法口径、实测基线、已知偏差、整理记录只在两库各自的 README（改代码时看）。
 
@@ -103,14 +103,14 @@
 
 ```powershell
 uv sync --all-packages     # 根是 virtual workspace；缺这个 flag 装不到成员依赖
-uv run pytest              # 269 个用例：266 passed + 3 skipped（1 个慢测 + 2 个需 guangzhou shp 夹具；有 shp 时 268 + 1）
+uv run pytest              # 全量用例；3 skipped（1 个慢测 + 2 个需 guangzhou shp 夹具）
 uv run ruff check .
 
 # 数据适配层：任务包 → ta1（零依赖加载 + frame 校验）
 uv run python -c "import scene_io,task_allocation1 as ta1; m=scene_io.load_mission('data/missions/demo_001',world=scene_io.load_world('data/worlds/guangzhou')); print(ta1.allocate(scene_io.to_ta1_request(m)).metrics_dict())"
 
-# 默认口径（垂直切面）：采样器约 3.5 s 建好
-uv run python -c "import scene_io,task_allocation1 as ta1; w=scene_io.load_world('data/worlds/guangzhou'); m=scene_io.load_mission('data/missions/demo_001',world=w); g,o=scene_io.to_ta1_cost_samplers(w); print(ta1.allocate(scene_io.to_ta1_request(m,ground_z=g,obstacle_top_z=o)).metrics_dict())"
+# 默认口径（垂直切面）：ta1 自己读世界地形，不依赖 pp1
+uv run python -c "import scene_io,task_allocation1 as ta1; from task_allocation1.terrain import load_world_terrain; m=scene_io.load_mission('data/missions/demo_001',world=scene_io.load_world('data/worlds/guangzhou')); g,o=load_world_terrain('data/worlds/guangzhou').samplers(); print(ta1.allocate(scene_io.to_ta1_request(m,ground_z=g,obstacle_top_z=o)).metrics_dict())"
 
 # 单段航段（pp1）：可复制片段见 path_planning1/README.md §9 或 docs/2怎么用-pp1算法.md §2
 ```

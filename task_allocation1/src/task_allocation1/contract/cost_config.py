@@ -6,7 +6,8 @@
   按飞行带与爬升率做地形跟随，得到「可飞航程」的近似（比直线长，比真规划便宜）。
 - ``euclid3d``：三维直线，零依赖、零开销；无地形数据或只想要粗略排序时显式选用。
 
-``vertical_section`` 需要调用方注入两个采样器（本库仍不读文件、不 import GIS 栈）：
+``vertical_section`` 需要地面与建筑包络采样器；核心不读文件，采样器可由调用方注入，
+也可用可选 ``task_allocation1.terrain`` 从世界目录现造（不依赖 pp1）：
 
     ground_z(xs, ys)        -> 每点地面高程（绝对 z）；None = 平地 0 m
     obstacle_top_z(xs, ys)  -> 每点障碍包络顶（绝对 z，建筑屋顶）；None = 无建筑

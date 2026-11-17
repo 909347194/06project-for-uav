@@ -13,7 +13,8 @@
 水平距离越多，估计越长。与真规划器相比它仍只是代理：**只沿连线竖直翻越，
 不横向绕行**，所以楼密集时偏低（这也是它只作分配代理、不作交付口径的原因）。
 
-本模块零 I/O：地面与障碍包络一律由调用方注入采样器（``SurfaceSampler``）。
+本模块零 I/O：地面与障碍包络一律由调用方注入采样器（``SurfaceSampler``）；
+需要从世界目录现造时用 ``task_allocation1.terrain``（可选子模块，不 import pp1）。
 """
 
 from __future__ import annotations

@@ -9,8 +9,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# 本包是纯计算库：无服务壳、无 DEM/文件 I/O、无 Web 框架依赖。
-# 距离口径由调用方注入 distance_fn；需要真实地形航程时在上游服务层算好再注入。
+# 本包核心是纯计算：无服务壳、无 Web 框架依赖，距离口径由调用方注入。
+# 需要 ta1 自己读 GeoTIFF / Shapefile 时安装 terrain 额外依赖；不装也能用
+# numpy 数组或调用方自己的采样器。
+terrain = [
+    "pillow>=10",
+    "pyshp>=2.3",
+]
 
 [build-system]
 requires = ["hatchling"]

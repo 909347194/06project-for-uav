@@ -11,7 +11,7 @@ _REQUIRED = {
     "ConstraintConfig", "CostConfig", "DistanceFn", "EndNestPolicy", "ModelType",
     "Nest", "ProblemConfig", "SolverConfig", "SurfaceSampler", "Task", "TaskStatus",
     "UAV", "UAVStatus", "UAVTour", "VerticalSectionCost", "__version__",
-    "allocate", "build_distance_fn", "contract", "defaults", "euclidean3d",
+    "allocate", "build_distance_fn", "contract", "defaults", "euclidean3d", "terrain",
 }
 
 
