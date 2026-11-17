@@ -19,7 +19,7 @@
 │  ├─ worlds\guangzhou\  # 世界：region + building(5 个 shp 图层) + dem.tif + world.json（frame 真源）
 │  ├─ missions\demo_001\ # 任务包：mission/nests/uavs/tasks（经纬度真源）+ baseline
 │  └─ contracts\         # 两库互操作夹具（契约漂移测试用）
-├─ docs\                 # 五份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 完整流程 Tutorial
+├─ docs\                 # 六份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 完整流程 Tutorial → 5 交付说明
 │                        #   + 两库各一份全量配置示例（json / jsonc）+ examples/ 可执行配套
 ├─ artifacts\  (可选，自己建)  # 建场产物 <world_id>/<label>/（1.15 GB，跟世界走，不进版本库）
 └─ results\    (可选，自己建)  # 你的输出（实验/回归），按 <world_id>/<mission_id>/ 分层
@@ -46,6 +46,7 @@
 | `docs/2怎么用-pp1算法.md` | 装、配 JSON、建全域场、请求、结果字段、失败码映射、批量/缓存/并发、自检 | 后端工程师 |
 | `scene_io/README.md` | 零依赖数据适配层：world/mission 加载、frame 校验、懒加载桥（pp1 世界入参 / ta1 请求 / ta1 切面采样器） | 数据工程 / 后端 |
 | `docs/3任务分配-路径规划对接.md` | 两库关系（不 import、只走单航段请求/回执）、对接三步、请求/回执字段、9 个失败码与降级、延迟预算、验收清单 | 上层 / 联调 |
+| `docs/5交付说明-给后端.md` | **接之前必读**：交付状态、5 条接入要点、**已知问题（死旋钮 / K≤N-1 / DEM 栅格类型 / 合成数据）**、服务壳职责、联调验收清单 | **后端 / 联调第一篇看这个** |
 
 算法口径、实测基线、已知偏差、整理记录只在两库各自的 README（改代码时看）。
 
