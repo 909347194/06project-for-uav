@@ -65,15 +65,11 @@
 **四条归属规则**：世界目录名 = `world_id`；任务包只**引用**世界不复制世界；场产物跟世界走
 （`artifacts/<world_id>/<label>/`）；结果跟世界+任务走（`results/<world_id>/<mission_id>/`）。
 
-### 1.3 依赖关系
+### 1.3 三层职责
 
-```text
-scene_io ──(零依赖，不 import 下面两个)──┐
-                                        │  数据契约：ENU 米 + frame_hash + world.json
-ta1 ◄────────── 互不 import ──────────► pp1
-```
+![ta1 与 pp1 的三层职责](figures/ta1-pp1-layers.svg)
 
-`scene_io` 里的 `to_ta1_request()` 是**任务包装配**；`to_ta1_cost_samplers()` 是旧的可选桥（函数体里才 import pp1/shapely）。ta1 自己读地形直接用 `ta1.terrain`，不需要这座桥，也不会背上 shapely/casadi。
+图 1：底层 ta1 负责分配，pp1 负责单航段轨迹；中层把 `tours` 展开成空中航段并补绝对 `z`；上层服务编排两库，用 pp1 真值复核 ta1 估算。复核只报告差距，不改派、不重排。
 
 ---
 

@@ -1,0 +1,72 @@
+<svg viewBox="0 0 760 400" width="100%" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>ta1 与 pp1 的三层职责</title>
+  <desc>上层服务层负责编排与复核，只报告差距；中层把 ta1 的 tours 展开为空中航段并补绝对 z；底层 ta1 负责分配，pp1 负责单航段轨迹。</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .h { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 600; fill: #1F2937; }
+      .t { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 12px; fill: #4B5563; }
+      .n { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 11px; fill: #6B7280; }
+      .lbl { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 11px; fill: #374151; }
+    </style>
+  </defs>
+
+  <!-- 上层：服务层 -->
+  <rect x="24" y="20" width="712" height="106" rx="12" fill="#F1EFE8" stroke="#888780" stroke-width="0.8" stroke-dasharray="5 3"/>
+  <text class="h" x="44" y="43">上层 · 服务层（仓库外，归后端）</text>
+  <text class="t" x="44" y="68">编排：ta1 → 展开 → pp1；用 pp1 真值复核 ta1 估算</text>
+  <text class="t" x="44" y="88">边界：只报告差距，不重排、不改派、不回炉</text>
+  <text class="t" x="44" y="108">可做：缓存 · 并行 · 场复用 · 超时 · HTTP · 落库</text>
+
+  <!-- 中层：展开航段 -->
+  <rect x="200" y="152" width="400" height="78" rx="10" fill="#F7F2E7" stroke="#A88A52" stroke-width="0.8"/>
+  <text class="h" x="222" y="176">中层 · 展开航段（服务层代码）</text>
+  <text class="t" x="222" y="198">tours → 空中段：端点 xy + 绝对 z</text>
+  <text class="t" x="222" y="218">起降垂直段由服务层单独拆，不交给 pp1</text>
+
+  <!-- 底层：ta1 -->
+  <rect x="24" y="252" width="320" height="120" rx="10" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.8"/>
+  <text class="h" x="44" y="276">底层 · ta1 分配层</text>
+  <text class="t" x="44" y="299">约束：时间窗 / 续航 / 容量 / 同巢</text>
+  <text class="t" x="44" y="319">输出：tours + 估算 ETA / 航程</text>
+  <text class="t" x="44" y="339">输入：tasks / uavs / nests</text>
+  <text class="t" x="44" y="359">地形：可选，vertical_section 采样器</text>
+
+  <!-- 底层：pp1 -->
+  <rect x="416" y="252" width="320" height="120" rx="10" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.8"/>
+  <text class="h" x="436" y="276">底层 · pp1 航迹层</text>
+  <text class="t" x="436" y="299">输入：世界目录 + 端点 xy + 绝对 z</text>
+  <text class="t" x="436" y="319">输出：轨迹 / duration / 净空</text>
+  <text class="t" x="436" y="339">范围：只规划空中段</text>
+  <text class="t" x="436" y="359">不做：分配、起降、返巢</text>
+
+  <!-- 服务层 -> ta1：分配输入 -->
+  <line x1="120" y1="126" x2="120" y2="252" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="128" y="206">分配输入</text>
+
+  <!-- 服务层 -> pp1：世界目录 -->
+  <line x1="650" y1="126" x2="650" y2="252" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="660" y="170">世界目录</text>
+
+  <!-- ta1 -> 中层：tours -->
+  <line x1="326" y1="252" x2="300" y2="230" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="335" y="242">tours</text>
+
+  <!-- 中层 -> pp1：空中航段 -->
+  <line x1="500" y1="230" x2="486" y2="252" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="510" y="242">空中段</text>
+
+  <!-- ta1 -> 服务层：估算（虚线） -->
+  <line x1="60" y1="252" x2="60" y2="126" stroke="#6B7280" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arrow)"/>
+  <text class="lbl" x="68" y="188">估算</text>
+
+  <!-- pp1 -> 服务层：真值 -->
+  <line x1="700" y1="252" x2="700" y2="126" stroke="#6B7280" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text class="lbl" x="710" y="206">真值</text>
+
+  <!-- 图例 -->
+  <text class="n" x="24" y="390">虚线：ta1 估算；实线：数据流 / pp1 真值。</text>
+</svg>
