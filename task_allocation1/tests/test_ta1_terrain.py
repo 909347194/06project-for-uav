@@ -59,8 +59,21 @@ def test_load_world_terrain_lhasa() -> None:
     assert np.all(np.isfinite(terrain.ground_z(xs, ys)))
 
 
+def test_no_dem_means_flat_ground() -> None:
+    """没有 DEM 时地面按 0 m 平地；建筑仍从 0 起算相对高度。"""
+    building = BuildingLayer.from_polygons(
+        [np.array([[-10, -10], [10, -10], [10, 10], [-10, 10]], dtype=float)],
+        [20.0],
+    )
+    terrain = TerrainData(LocalFrame(0, 0, 0), None, building)
+    ground, obstacle = terrain.samplers()
+
+    assert ground([0.0, 50.0], [0.0, 50.0]) == pytest.approx([0.0, 0.0])
+    assert obstacle([0.0, 50.0], [0.0, 50.0]) == pytest.approx([20.0, 0.0])
+
+
 def test_shapefile_height_field(tmp_path: Path) -> None:
-    shapefile = pytest.importorskip("shapefile", reason="pyshp 是 [terrain] 可选依赖")
+    shapefile = pytest.importorskip("shapefile", reason="pyshp 随 task_allocation1 安装")
     writer = shapefile.Writer(str(tmp_path / "buildings.shp"))
     writer.field("Height", "N", 10, 2)
     writer.poly(
