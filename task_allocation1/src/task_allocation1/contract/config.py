@@ -83,7 +83,6 @@ class SolverConfig:
     polish_enabled: bool = True
     polish_rounds: int = D.DEFAULT_POLISH_ROUNDS
     cost_polish_eps: float = D.DEFAULT_COST_POLISH_EPS
-    assign_perturb_factor: float = D.DEFAULT_ASSIGN_PERTURB_FACTOR
     tour_perturb_factor: float = D.DEFAULT_TOUR_PERTURB_FACTOR
     perturb_temp_gate: float = D.DEFAULT_PERTURB_TEMP_GATE
 

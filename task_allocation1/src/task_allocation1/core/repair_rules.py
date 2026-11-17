@@ -1,9 +1,11 @@
-"""反映射修复规则：最近邻自适应匹配、唯一性掩码、无效值修补、段规范化。
+"""离散侧布局不变量：航次段规范化。
 
-``transform.py`` 只负责连续→离散；这里守护离散侧的布局不变量：
-- balanced：UAV↔Target 一一对应；
-- overloaded：UAV 不重复、目标至少出现一次；
-- srp：起始基因必须按 UAV 下标升序占据前 K 槽，段内巡游基因紧随其后。
+``transform.py`` 只负责连续→离散；这里守护 SRP 的唯一不变量：
+- 起始基因按 UAV 下标升序占据前 K 槽，其后紧跟属于该 UAV 的巡游基因；
+- 每个目标恰好出现一次（一个任务只被一架机完成），缺漏目标挂到最后一个非空 UAV。
+
+``repair_invalid`` / ``mask_*`` / ``nearest_match_adaptive`` 曾服务于已停用的
+balanced/overloaded 通路，随该通路一并删除（任务唯一分配后不再需要按模型分支掩码）。
 """
 
 from __future__ import annotations
@@ -13,59 +15,6 @@ from itertools import pairwise
 import numpy as np
 
 from .encoding import Gene
-
-
-def nearest_match_adaptive(
-    cv: float, matrix: np.ndarray, mask: np.ndarray, *, temperature: float,
-    rng: np.random.Generator,
-) -> tuple[int, int, float] | None:
-    """在未被掩码的格子里，找代价最接近 cv 的 (row, col)；温度控制 softmax 探索。"""
-    diffs = np.abs(np.where(mask, np.inf, matrix) - cv)
-    if not np.isfinite(diffs).any():
-        return None
-    if temperature < 0.1:
-        flat = int(np.argmin(diffs))
-    else:
-        d = diffs.copy()
-        d[~np.isfinite(d)] = np.inf
-        minv = float(np.nanmin(np.where(np.isfinite(d), d, np.inf)))
-        if not np.isfinite(minv):
-            return None
-        spread = max(float(np.nanstd(d[np.isfinite(d)])), 1e-6)
-        logits = -(d - minv) / spread / max(0.01, temperature * 2.0)
-        logits[~np.isfinite(logits)] = -1e9
-        p = np.exp(logits - logits.max())
-        p /= p.sum()
-        flat = int(rng.choice(p.size, p=p.ravel()))
-    row, col = divmod(flat, matrix.shape[1])
-    return int(row), int(col), float(matrix[row, col])
-
-
-def mask_balanced(mask: np.ndarray, row: int, col: int) -> None:
-    mask[row, :] = True
-    mask[:, col] = True
-
-
-def mask_overloaded(mask: np.ndarray, row: int, col: int) -> None:
-    mask[row, :] = True  # UAV 不重复；目标可重复
-
-
-def repair_invalid(matrix: np.ndarray, mask: np.ndarray, count: int, *,
-                   model_type, n_uavs: int, rng: np.random.Generator) -> list[tuple[int, int, float]]:
-    """规则 3.6：无效基因（nan/负/越界）随机补到可用格。"""
-    out: list[tuple[int, int, float]] = []
-    rows = [r for r in range(matrix.shape[0]) if not mask[r, :].all()]
-    if not rows:
-        return out
-    for _ in range(count):
-        row = int(rng.choice(rows))
-        cols = [c for c in range(matrix.shape[1]) if not mask[row, c] and np.isfinite(matrix[row, c])]
-        if not cols:
-            continue
-        col = int(rng.choice(cols))
-        out.append((row, col, float(matrix[row, col])))
-        mask_balanced(mask, row, col) if model_type.value == "balanced" else mask_overloaded(mask, row, col)
-    return out
 
 
 def recalc_tour_costs(genes: list[Gene], matrix: np.ndarray, n_uavs: int) -> None:

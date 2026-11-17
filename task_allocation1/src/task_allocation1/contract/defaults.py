@@ -28,7 +28,6 @@ DEFAULT_EXTINCTION_DELTA = None  # GMR 灭绝阈值；None = 原式 GMR = 1 - CR
 DEFAULT_SEED = 0
 
 # —— 反映射温度退火与扰动 -------------------------------------------------
-DEFAULT_ASSIGN_PERTURB_FACTOR = 0.4
 DEFAULT_TOUR_PERTURB_FACTOR = 0.5
 DEFAULT_PERTURB_TEMP_GATE = 0.1
 

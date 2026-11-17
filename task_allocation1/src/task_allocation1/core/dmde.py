@@ -30,13 +30,12 @@ class DMDEResult:
 class DMDESolver:
     def __init__(self, *, pop_size: int, max_generations: int, zeta: int,
                  extinction_delta: float | None, seed: int | None,
-                 assign_factor: float, tour_factor: float, temp_gate: float) -> None:
+                 tour_factor: float, temp_gate: float) -> None:
         self.pop_size = max(4, int(pop_size))
         self.max_generations = max(0, int(max_generations))
         self.zeta = int(zeta)
         self.delta = extinction_delta
         self.seed = seed
-        self.assign_factor = float(assign_factor)
         self.tour_factor = float(tour_factor)
         self.temp_gate = float(temp_gate)
 
@@ -72,7 +71,6 @@ class DMDESolver:
                 child = inverse_phi(
                     trials[i], cost_matrix, k, n, model, rng,
                     temperature=temperature,
-                    assign_factor=self.assign_factor,
                     tour_factor=self.tour_factor,
                     temp_gate=self.temp_gate,
                 )

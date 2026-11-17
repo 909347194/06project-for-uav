@@ -31,12 +31,17 @@ class UAVStatus(str, Enum):
 
 
 class ModelType(str, Enum):
-    """编码模型形态（K=参与机数，N=任务数）。"""
+    """编码模型形态（K=参与机数，N=任务数）。
 
-    BALANCED = "balanced"      # K == N
-    OVERLOADED = "overloaded"  # K > N
-    SRP = "srp"                # K < N，巡游
-    EMPTY = "empty"
+    本库口径：任务唯一分配（一个任务只被一架机完成），一机可串飞多任务，
+    K 恒满足 ``K <= max(1, N-1)``；机多于任务时未选中的机闲置。
+    因此实际只会产生 ``SRP`` 与 ``EMPTY`` 两种。
+    """
+
+    BALANCED = "balanced"      # K == N。已停用：本库不再产生，仅为兼容保留
+    OVERLOADED = "overloaded"  # K > N。已停用：本库不再产生，仅为兼容保留
+    SRP = "srp"                # K <= N-1（N=1 时 K=1，巡游维为 0）
+    EMPTY = "empty"            # 无任务或无可用机
 
 
 class EndNestPolicy(str, Enum):

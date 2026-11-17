@@ -35,8 +35,6 @@
     "polish_rounds": 30,
     // 默认 1.0（米）；航程改善小于它就不算"变好"
     "cost_polish_eps": 1.0,
-    // 默认 0.4；反映射里的改派扰动幅度
-    "assign_perturb_factor": 0.4,
     // 默认 0.5；反映射里的组内重排扰动幅度
     "tour_perturb_factor": 0.5,
     // 默认 0.1；扰动温度门限，低于它不再扰动

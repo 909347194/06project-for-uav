@@ -43,8 +43,18 @@ def test_solver_config_defaults_match_constants() -> None:
     assert s.participating_policy == D.DEFAULT_PARTICIPATING_POLICY
     assert s.repair_max_passes == D.DEFAULT_REPAIR_MAX_PASSES
     assert s.cost_polish_eps == D.DEFAULT_COST_POLISH_EPS
-    assert s.assign_perturb_factor == D.DEFAULT_ASSIGN_PERTURB_FACTOR
     assert s.tour_perturb_factor == D.DEFAULT_TOUR_PERTURB_FACTOR
+
+
+def test_solver_config_drops_retired_assign_perturb_factor() -> None:
+    """``assign_perturb_factor`` 随 BALANCED/OVERLOADED 通路停用而删除。
+
+    旧配置 JSON 里仍可能带这个键：``from_dict`` 按已知字段过滤，必须能静默忽略，
+    不许让老配置文件在升级后直接抛错。
+    """
+    assert not hasattr(SolverConfig(), "assign_perturb_factor")
+    s = SolverConfig.from_dict({"assign_perturb_factor": 0.4, "seed": 7})
+    assert s.seed == 7
 
 
 def test_from_dict_ignores_unknown_keys() -> None:

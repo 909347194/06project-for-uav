@@ -4,7 +4,7 @@
 ``Individual.cost_vector`` 采用固定布局供 DE 差分：
     ``[0,K)``  起始基因（UAV→首任务），``[K,N)`` 巡游基因（任务→任务）。
 方案 A：终点机巢不进编码——同巢起降下终点恒=起飞巢，更无需入基因。
-基因长度：balanced/overloaded = K，SRP = N（与反映射消费槽位一致）。
+基因长度恒为 N：K 个起始基因 + N-K 个巡游基因（N=1 时巡游维为 0）。
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ class Gene:
 class Individual:
     genes: list[Gene]
     fitness: float = float("inf")
-    model_type: ModelType = ModelType.BALANCED
+    model_type: ModelType = ModelType.SRP
 
     @property
     def assignment(self) -> list[tuple[int, int]]:
@@ -57,12 +57,27 @@ class Individual:
 
 
 def model_type_of(k: int, n: int) -> ModelType:
-    if n == 0:
+    """按本库口径判定编码模型：只会返回 SRP 或 EMPTY。
+
+    口径（2026-11 起固定）：任务唯一分配——一个任务只能被一架无人机完成；
+    参与机数 ``K`` 恒满足 ``K <= max(1, N-1)``（``N=1`` 时 ``K=1``，巡游维为 0）；
+    无人机多于任务时，未选中的机闲置。
+
+    因此 BALANCED（``K == N``）与 OVERLOADED（``K > N``）在本库不再产生。这里不是
+    “恰好不发生”，而是显式拒绝：越界即抛错，避免上游配置漂移后静默走进
+    “一任务多机”的旧分支。
+    """
+    k = int(k)
+    n = int(n)
+    if n <= 0 or k <= 0:
         return ModelType.EMPTY
-    if k == n:
-        return ModelType.BALANCED
-    if k > n:
-        return ModelType.OVERLOADED
+    k_cap = max(1, n - 1)
+    if k > k_cap:
+        raise ValueError(
+            f"编码模型口径冲突：K={k}, N={n}, 上界={k_cap}。本库禁止 BALANCED(K=N) 与 "
+            f"OVERLOADED(K>N)：任务唯一分配，参与机数必须由 "
+            f"select_participating_uavs 裁剪到 max(1, N-1) 以内。"
+        )
     return ModelType.SRP
 
 
@@ -76,30 +91,9 @@ class PopulationEncoder:
         self.model = model_type_of(k=n_uavs, n=n_targets)
 
     def generate(self, pop_size: int, rng: np.random.Generator) -> list[Individual]:
-        method = {
-            ModelType.BALANCED: self._balanced,
-            ModelType.OVERLOADED: self._overloaded,
-            ModelType.SRP: self._srp,
-        }.get(self.model)
-        if method is None:
+        if self.model is ModelType.EMPTY:
             return []
-        return [method(rng) for _ in range(pop_size)]
-
-    def _balanced(self, rng: np.random.Generator) -> Individual:
-        targets = list(rng.permutation(self.n))
-        genes = [Gene(i, int(j), float(self.cm[i, j])) for i, j in enumerate(targets)]
-        return Individual(genes, model_type=self.model)
-
-    def _overloaded(self, rng: np.random.Generator) -> Individual:
-        uavs = list(rng.permutation(self.k))
-        genes: list[Gene] = []
-        for idx in range(self.n):  # 每目标至少一个 UAV
-            u = int(uavs[idx]); t = idx
-            genes.append(Gene(u, t, float(self.cm[u, t])))
-        for idx in range(self.n, self.k):  # 余下 UAV 随机挂目标（可重复）
-            u = int(uavs[idx]); t = int(rng.integers(0, self.n))
-            genes.append(Gene(u, t, float(self.cm[u, t])))
-        return Individual(genes, model_type=self.model)
+        return [self._srp(rng) for _ in range(pop_size)]
 
     def _srp(self, rng: np.random.Generator) -> Individual:
         targets = list(rng.permutation(self.n))

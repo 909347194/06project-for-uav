@@ -1,8 +1,8 @@
 """反映射 φ'（公式 3-7）：连续代价值向量 → 离散个体。
 
-- balanced/overloaded：只在「UAV 行 × 任务列」子矩阵匹配，掩码保唯一性；
-- srp：起始槽位逐 UAV 匹配，巡游槽位按“当前已访问目标行”迭代匹配
-  （Ming 2017 Rule 2(c)），令**访问顺序真正进入 DE 搜索空间**。
+只有 srp 一条通路：起始槽位逐 UAV 匹配，巡游槽位按“当前已访问目标行”迭代匹配
+（Ming 2017 Rule 2(c)），令**访问顺序真正进入 DE 搜索空间**。任务唯一性由
+``remaining`` 未分配池保证，``normalize_srp_segments`` 只兜补缺漏。
 
 温度 ``T = 1 - g/S``：早期大扰动探索、后期贪心开发。终点机巢不进编码。
 """
@@ -14,104 +14,25 @@ import numpy as np
 from ..contract.enums import ModelType
 from .encoding import Gene, Individual
 from .repair_rules import (
-    mask_balanced,
-    mask_overloaded,
-    nearest_match_adaptive,
     normalize_srp_segments,
     recalc_tour_costs,
-    repair_invalid,
 )
 
 
 def inverse_phi(cost_vector: np.ndarray, cost_matrix: np.ndarray, k: int, n: int,
                 model: ModelType, rng: np.random.Generator, *, temperature: float = 0.5,
-                assign_factor: float = 0.4, tour_factor: float = 0.5,
-                temp_gate: float = 0.1) -> Individual:
-    if model == ModelType.SRP:
-        return _srp(cost_vector, cost_matrix, k, n, rng, temperature, tour_factor, temp_gate)
-    return _standard(cost_vector, cost_matrix, k, n, model, rng,
-                     temperature, assign_factor, temp_gate)
+                tour_factor: float = 0.5, temp_gate: float = 0.1) -> Individual:
+    """``tour_factor`` 控制巡游顺序扰动幅度，``temp_gate`` 是扰动温度门限。
 
-
-def _standard(cv: np.ndarray, cm: np.ndarray, k: int, n: int, model: ModelType,
-              rng: np.random.Generator, temperature: float, factor: float,
-              gate: float) -> Individual:
-    work = np.asarray(cm, dtype=float).copy()
-    mask = np.zeros_like(work, dtype=bool)
-    mask[k:, :] = True   # 只用 UAV 行
-    mask[:, n:] = True   # 只用任务列
-    genes: list[Gene] = []
-    invalid = 0
-    for idx, value in enumerate(cv):
-        if not np.isfinite(value) or value < 0:
-            invalid += 1
-            continue
-        hit = nearest_match_adaptive(float(value), work, mask,
-                                     temperature=temperature, rng=rng)
-        if hit is None:
-            invalid += 1
-            continue
-        row, col, cost = hit
-        genes.append(Gene(row, col, cost))
-        if model == ModelType.BALANCED:
-            mask_balanced(mask, row, col)
-        else:
-            mask_overloaded(mask, row, col)
-
-    if invalid:
-        genes.extend(Gene(r, c, co) for r, c, co in
-                     repair_invalid(work, mask, invalid, model_type=model,
-                                    n_uavs=k, rng=rng))
-
-    if temperature > gate and len(genes) >= 2:
-        prob = temperature * factor
-        if rng.random() < prob:
-            i, j = rng.choice(len(genes), size=2, replace=False)
-            gi, gj = genes[i], genes[j]
-            genes[i] = Gene(gi.uav_id, gj.target_id, float(work[gi.uav_id, gj.target_id]))
-            genes[j] = Gene(gj.uav_id, gi.target_id, float(work[gj.uav_id, gi.target_id]))
-
-    if model == ModelType.BALANCED:
-        _fix_balanced(genes, work, n)
-    elif model == ModelType.OVERLOADED:
-        _fix_overloaded(genes, work, n, rng)
-    return Individual(genes=genes, model_type=model)
-
-
-def _fix_balanced(genes: list[Gene], cm: np.ndarray, n: int) -> None:
-    seen: set[int] = set()
-    dups: list[int] = []
-    for i, g in enumerate(genes):
-        if g.target_id in seen:
-            dups.append(i)
-        else:
-            seen.add(g.target_id)
-    missing = [t for t in range(n) if t not in seen]
-    for i in dups:
-        if not missing:
-            break
-        g = genes[i]; t = missing.pop(0)
-        genes[i] = Gene(g.uav_id, t, float(cm[g.uav_id, t]))
-
-
-def _fix_overloaded(genes: list[Gene], cm: np.ndarray, n: int,
-                    rng: np.random.Generator) -> None:
-    counts: dict[int, int] = {}
-    for g in genes:
-        counts[g.target_id] = counts.get(g.target_id, 0) + 1
-    uncovered = [t for t in range(n) if counts.get(t, 0) == 0]
-    replaceable = [t for t, c in counts.items() if c > 1]
-    for t in uncovered:
-        if not replaceable:
-            break
-        src = int(rng.choice(replaceable))
-        idxs = [i for i, g in enumerate(genes) if g.target_id == src]
-        worst = max(idxs, key=lambda i: genes[i].cost)
-        g = genes[worst]
-        genes[worst] = Gene(g.uav_id, t, float(cm[g.uav_id, t]))
-        counts[src] -= 1; counts[t] = counts.get(t, 0) + 1
-        if counts[src] <= 1:
-            replaceable.remove(src)
+    原先的 ``assign_factor``（分配槽交换扰动）随 BALANCED/OVERLOADED 通路一并删除：
+    SRP 的起始槽位只由温度控制匹配，没有“改派”这一层。
+    """
+    if model is not ModelType.SRP:
+        raise ValueError(
+            f"反映射只支持 SRP：收到 model={model!r}。BALANCED(K=N) 与 OVERLOADED(K>N) "
+            f"已停用（任务唯一分配、一机可串飞多任务）。"
+        )
+    return _srp(cost_vector, cost_matrix, k, n, rng, temperature, tour_factor, temp_gate)
 
 
 def _srp(cv: np.ndarray, cm: np.ndarray, k: int, n: int, rng: np.random.Generator,

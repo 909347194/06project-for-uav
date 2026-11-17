@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from task_allocation1.contract.entities import UAV, Nest, Task
 from task_allocation1.contract.enums import ModelType
 from task_allocation1.core.cost import build_cost_matrix
@@ -11,11 +12,21 @@ from task_allocation1.core.inverse_map import inverse_phi
 from task_allocation1.core.problem import SelectiveProblem
 
 
-def test_model_type() -> None:
-    assert model_type_of(3, 3) == ModelType.BALANCED
-    assert model_type_of(5, 3) == ModelType.OVERLOADED
+def test_model_type_only_srp_and_empty() -> None:
+    """口径：任务唯一分配、K <= max(1, N-1)；本库只产 SRP / EMPTY。"""
     assert model_type_of(2, 5) == ModelType.SRP
+    assert model_type_of(1, 2) == ModelType.SRP
+    assert model_type_of(1, 1) == ModelType.SRP      # N=1：K=1，巡游维为 0
+    assert model_type_of(3, 5) == ModelType.SRP
     assert model_type_of(0, 0) == ModelType.EMPTY
+    assert model_type_of(0, 3) == ModelType.EMPTY
+
+
+@pytest.mark.parametrize("k,n", [(3, 3), (5, 3), (2, 1)])
+def test_model_type_rejects_balanced_and_overloaded(k: int, n: int) -> None:
+    """K=N（balanced）与 K>N（overloaded，含 N=1 时 K>1）必须显式拒绝。"""
+    with pytest.raises(ValueError):
+        model_type_of(k, n)
 
 
 def test_encoding_cost_vector_fixed_layout() -> None:
@@ -37,10 +48,18 @@ def test_inverse_phi_returns_unique_targets() -> None:
                    [120., 0., 180.],
                    [220., 180., 0.]])
     cv = np.array([105., 255., 125.])
-    for model in (ModelType.BALANCED, ModelType.OVERLOADED, ModelType.SRP):
-        ind = inverse_phi(cv, cm, 2, 3, model, np.random.default_rng(0))
-        tids = ind.assignment
-        assert tids, model
+    ind = inverse_phi(cv, cm, 2, 3, ModelType.SRP, np.random.default_rng(0))
+    assert ind.assignment
+    tids = [t for _, t in ind.assignment]
+    assert len(tids) == len(set(tids)) == 3   # 每个任务恰好一次
+
+
+@pytest.mark.parametrize("model", [ModelType.BALANCED, ModelType.OVERLOADED])
+def test_inverse_phi_rejects_disabled_models(model: ModelType) -> None:
+    cm = np.eye(4)
+    cv = np.array([1., 1.])
+    with pytest.raises(ValueError):
+        inverse_phi(cv, cm, 2, 2, model, np.random.default_rng(0))
 
 
 def test_range_violation_detected() -> None:

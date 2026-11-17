@@ -82,8 +82,7 @@ def allocate(request: AllocateRequest) -> AllocateResult:
     solver = DMDESolver(
         pop_size=scfg.pop_size, max_generations=scfg.max_generations,
         zeta=scfg.zeta, extinction_delta=scfg.extinction_delta,
-        seed=scfg.seed, assign_factor=scfg.assign_perturb_factor,
-        tour_factor=scfg.tour_perturb_factor, temp_gate=scfg.perturb_temp_gate,
+        seed=scfg.seed, tour_factor=scfg.tour_perturb_factor, temp_gate=scfg.perturb_temp_gate,
     )
     dmde = solver.solve(cost_build.combined(), k, len(tasks), evaluate, model=model)
 
