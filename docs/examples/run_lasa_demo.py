@@ -11,7 +11,7 @@
     ③ 展开 tours → 航段          —— 只把**空中航段**交给 pp1，起降另算
     ④ pp1.create_context()      —— 建全域场（一次），保存产物供复用
     ⑤ 逐段 ctx.plan()           —— 真航迹 + 时长 + 净空
-    ⑥ 用真 duration_s 复核时间窗与航程，写 results/
+    ⑥ 用真 duration_s 复核时间窗与航程的差距（只报告、不重排），写 results/
 
 三个 workspace 成员包（依赖由各包自带）；不改任何库内代码。
 """
@@ -171,7 +171,7 @@ def plan_segments(world, segs):
 
 # ---------------------------------------------------------------- ⑥ 复核
 def review(res, mission, seg_recs):
-    section("⑥ 用真 duration_s 复核时间窗与航程")
+    section("⑥ 用真 duration_s 复核时间窗与航程的差距（只报告、不重排）")
     by_task = {t.id: t for t in mission.tasks}
     by_uav = {u.id: u for u in mission.uavs}
     service = 30.0            # mission.json 的 problem.default_service_time

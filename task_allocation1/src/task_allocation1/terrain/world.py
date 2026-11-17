@@ -113,7 +113,8 @@ def _add_shapefile(path: Path, frame: LocalFrame, field: str, out: list, heights
         import shapefile
     except ImportError as exc:  # pragma: no cover - 环境问题
         raise ModuleNotFoundError(
-            "读 Shapefile 需要 pyshp：pip install 'task_allocation1[terrain]'"
+            "读 Shapefile 需要 pyshp；正常安装 task_allocation1 已自带，"
+            "手工环境可 pip install pyshp"
         ) from exc
     reader = shapefile.Reader(str(path), encoding="gbk", encodingErrors="replace")
     try:

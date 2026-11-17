@@ -84,7 +84,8 @@ def load_geotiff_dem(path: str | Path, *, nodata: float | None = None) -> DEM:
         from PIL import Image
     except ImportError as exc:  # pragma: no cover - 环境问题
         raise ModuleNotFoundError(
-            "读 GeoTIFF 需要 pillow：pip install 'task_allocation1[terrain]'"
+            "读 GeoTIFF 需要 pillow；正常安装 task_allocation1 已自带，"
+            "手工环境可 pip install pillow"
         ) from exc
 
     path = Path(path)

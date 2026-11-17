@@ -2,7 +2,7 @@
 
 > **背景**：拉萨市城关区（`lasa_chengguan`）。
 > **约定**：本文用 `/` 表示项目根目录（`06project-for-uav/`），所有相对路径从它算起。
-> **目标**：安装 → 配置 → 校验 → `ta1` 分配 → 展开航段 → `pp1` 逐段规划 → 回执复核 → 落盘。
+> **目标**：安装 → 配置 → 校验 → `ta1` 分配 → 展开航段 → `pp1` 逐段规划 → 回执复核（只报告差距）→ 落盘。
 > **可执行**：每步都能直接复制运行；配套脚本是 [`docs/examples/run_lasa_demo.py`](examples/run_lasa_demo.py)，数据已随仓库提供。
 > 数据格式与换城市不在本文展开，统一见 [`0数据准备与处理.md`](0数据准备与处理.md)。
 
@@ -357,7 +357,7 @@ print(plan.metrics_dict())
 
 ## 9. 两库对接：用真 `duration_s` 复核
 
-按 `3任务分配-路径规划对接.md` 的三步走：ta1 出 `tours` → 展开成空中航段 → pp1 逐段规划 → 用真 `duration_s` 复核 ETA / 时间窗 / 续航。
+按 `3任务分配-路径规划对接.md` 的三步走：ta1 出 `tours` → 展开成空中航段 → pp1 逐段规划 → 用真 `duration_s` 复核 ETA / 时间窗 / 续航。**复核只报告差距、不重排、不改派**——把 ta1 分配时的估算值和 pp1 落地后的真值摆在一起比一比，列出哪些任务真值下会迟到、真航程差多少；要不要据此改派由上层服务决定，不在本仓。
 
 本例复核结果：
 
@@ -373,7 +373,7 @@ print(plan.metrics_dict())
 迟到任务数 = 0 / 6
 ```
 
-三种回执：`ok + trajectory` 直接下发；`ok + trajectory=None` 标 `DEGRADED`；`infeasible` 按失败码改端点/换机，只做局部重排（1–2 轮）。接口字段、缓存键、失败处理见 `3任务分配-路径规划对接.md` §2–§5。
+三种回执只进报告、不改派：`ok + trajectory` 用真值算差距；`ok + trajectory=None` 标 `DEGRADED`（时长不可信，不进时间窗对比）；`infeasible` 记失败码 + 端点、标该段不可行。接口字段、缓存键、失败处理见 `3任务分配-路径规划对接.md` §2–§5。
 
 ## 10. 一键跑通 + 输出解读
 
@@ -383,7 +383,7 @@ python3 docs/examples/run_lasa_demo.py            # 全程（约 1 分钟）
 python3 docs/examples/run_lasa_demo.py --quick    # 只跑 ta1（约 2 秒）
 ```
 
-脚本做 6 件事，对应本文 §5–§9：
+脚本做 6 件事，对应本文 §5–§9（第 ⑥ 步只报告差距、不改派）：
 
 ```text
 ① scene_io 装载世界 + 任务包（经纬度 → ENU，校验 frame / frame_hash）
@@ -391,7 +391,7 @@ python3 docs/examples/run_lasa_demo.py --quick    # 只跑 ta1（约 2 秒）
 ③ 展开 tours → 航段          —— 只把空中航段交给 pp1，起降另算
 ④ pp1.create_context()      —— 建全域场（一次），保存产物供复用
 ⑤ 逐段 ctx.plan()           —— 真航迹 + 时长 + 净空
-⑥ 用真 duration_s 复核时间窗与航程，写 results/
+⑥ 用真 duration_s 复核时间窗与航程（只报告差距），写 results/
 ```
 
 落盘到 `/results/lasa_chengguan/lasa_demo_001/run_001.json`：
