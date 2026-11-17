@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 对外入口 | `import task_allocation1 as ta1` → `ta1.allocate(ta1.AllocateRequest(...))`；顶层 `__all__`（25 个名字）是正式 API |
+| 对外入口 | `import task_allocation1 as ta1` → `ta1.allocate(ta1.AllocateRequest(...))`；顶层 `__all__` 是正式 API |
 | 核心改造 | **终点机巢恒 = 起飞巢**（`end_nest_id == start_nest_id == uav.nest_id`）；删掉异巢降落 / 最小费用流，返航代价照常计入航程与目标 |
 | 输入 | 内存中的 `tasks` / `uavs` / `nests` + `cost_config`（或 `distance_fn`）+ 配置；没有任何文件 I/O |
 | 距离尺子 | `CostConfig` 两档：`vertical_section`（默认，垂直切面；飞行带 `agl_min/agl_max`、净空 `clearance_m`、爬升率 `climb_rate`、采样 `num_samples` 全可配；有地形时注入采样器）/ `euclid3d`（三维直线，无地形自动） |
@@ -141,4 +141,4 @@ uv pip install -e task_allocation1
 
 ## 7. 来源
 
-算法口径来自参考项目 `D:\SchoolAffairs\groupmeeting\thesis\dissertation\ExperimentForGraduation\task_allocation`（第 3 章 MUAS + DMDE + 修复链 + polish）；本库是其**同巢起降、纯计算化**的重新封装，不是逐文件拷贝。端到端同巢契约见 `tests/test_ta1_same_nest.py`，独立重算的正确性实验（脚本不在本发行版）方法见 `docs/1怎么用-ta1算法.md` §6。
+算法口径来自参考项目 `D:\SchoolAffairs\groupmeeting\thesis\dissertation\ExperimentForGraduation\task_allocation`（第 3 章 MUAS + DMDE + 修复链 + polish）；本库是其**同巢起降、纯计算化**的重新封装，不是逐文件拷贝。端到端同巢契约见 `tests/test_ta1_same_nest.py`；拿到解后按本库口径独立重算复核的方法见 `docs/1怎么用-ta1算法.md` §2.3（脚本不在本发行版）。

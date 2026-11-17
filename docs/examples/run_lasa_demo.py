@@ -4,7 +4,7 @@
     python3 docs/examples/run_lasa_demo.py            # 跑全程
     python3 docs/examples/run_lasa_demo.py --quick    # 只跑 ta1（跳过 pp1，秒级）
 
-流程（对应 `docs/4完整流程Tutorial.md` §6–§8）：
+流程（对应 `docs/4完整流程Tutorial.md` §5–§9）：
 
     ① scene_io 装载世界 + 任务包（经纬度 → ENU，校验 frame / frame_hash）
     ② ta1.allocate()            —— 谁飞、什么顺序、回哪个巢（同巢起降）
@@ -36,10 +36,6 @@ WORLD_DIR = ROOT / "data/worlds/lasa_chengguan"
 MISSION_DIR = ROOT / "data/missions/lasa_demo_001"
 ARTIFACT_DIR = ROOT / "artifacts/lasa_chengguan/default"
 RESULT_DIR = ROOT / "results/lasa_chengguan/lasa_demo_001"
-
-# 起降点不在 pp1 的飞行带内（贴地），所以每个航路点都按“巡航真高”抬到绝对 z 再规划；
-# 垂直起降段由上层自己管，pp1 只负责水平位移的那几段。
-CRUISE_AGL_M = 40.0
 
 
 def section(title: str) -> None:
@@ -95,8 +91,9 @@ def expand_tours(res, mission):
     """tours → 航段（只含空中航段；起降垂直段不进 pp1）。
 
     每条 tour 的形状是  巢 → t1 → … → tn → 巢（同巢起降）。
-    这里把“巢”也抬到巡航真高，于是  巢@巡航高 → t1 → … → tn → 巢@巡航高
-    每一对相邻点都是一条合法的空中航段，可直接喂 pp1；真正的垂直起降另算。
+    任务包里每个点的 z_abs 已经是巡航高度的绝对高程（数据侧就带着），
+    这里只把相邻点两两配对、z 原样透传，不做任何抬升/换算；
+    贴地的垂直起降段不在数据里，也不交给 pp1。
     """
     by_task = {t.id: t for t in mission.tasks}
     by_nest = {n.id: n for n in mission.nests}
@@ -174,7 +171,7 @@ def review(res, mission, seg_recs):
     section("⑥ 用真 duration_s 复核时间窗与航程的差距（只报告、不重排）")
     by_task = {t.id: t for t in mission.tasks}
     by_uav = {u.id: u for u in mission.uavs}
-    service = 30.0            # mission.json 的 problem.default_service_time
+    service = float(mission.problem.get("default_service_time", 0.0))  # 来自 mission.json 的 problem 段
     rows = []
     for tour in res.solution.tours:
         if not tour.task_ids:
@@ -194,8 +191,10 @@ def review(res, mission, seg_recs):
                          "arrive_s": round(arrive, 1), "latest": t.latest,
                          "late_s": round(late, 1)})
             cursor = arrive + service
+        over_m = max(0.0, plan_m - u.remaining_range)   # 续航超程差距：只报告，不改派
+        flag = f"  [超程 {over_m:.0f} m]" if over_m > 0 else ""
         print(f"  UAV {tour.uav_id} (v={u.speed:g} m/s, 航程预算 {u.remaining_range:.0f} m): "
-              f"真航程 {plan_m:.0f} m  交付 {len(tour.task_ids)} 个任务")
+              f"真航程 {plan_m:.0f} m  交付 {len(tour.task_ids)} 个任务{flag}")
     print(f"\n{'UAV':>4} {'task':>6} {'到达(s)':>9} {'最晚':>8} {'迟到(s)':>8}")
     for r in rows:
         print(f"{r['uav_id']:>4} {r['task_id']:>6} {r['arrive_s']:>9} "

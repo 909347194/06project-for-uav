@@ -17,8 +17,10 @@
 │  ├─ worlds\guangzhou\  # 世界：region + building(5 个 shp 图层) + dem.tif + world.json（frame 真源）
 │  ├─ missions\demo_001\ # 任务包：mission/nests/uavs/tasks（经纬度真源）+ baseline
 │  └─ contracts\         # 航段请求夹具（pp1 契约漂移测试用）
-├─ docs\                 # 六份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 完整流程 Tutorial → 5 交付说明
-│                        #   + 两库各一份全量配置示例（json / jsonc）+ examples/ 可执行配套
+├─ docs\                 # 七份文档：0 数据 → 1 ta1 → 2 pp1 → 3 对接 → 4 完整流程 Tutorial → 5 交付说明
+│                        #   + 6 打包与分发（给作者：怎么打 wheel、怎么组交付包）+ 两库各一份全量配置示例
+│                        #   （json / jsonc）+ examples/ 可执行配套
+├─ packaging\            # 分发工具：INSTALL.md（转发给接收方）+ check_install.py + build_delivery.ps1
 ├─ artifacts\  (可选，自己建)  # 建场产物 <world_id>/<label>/（1.15 GB，跟世界走，不进版本库）
 └─ results\    (可选，自己建)  # 你的输出（实验/回归），按 <world_id>/<mission_id>/ 分层
 ```
@@ -44,6 +46,8 @@
 | `docs/3任务分配-路径规划对接.md` | **只讲对接**：两库关系、对接三步、请求/回执字段、失败回环、延迟预算、验收清单 | 上层 / 联调 |
 | `docs/4完整流程Tutorial.md` | **完整使用**（拉萨市城关区）：安装、配置、校验、ta1 → 展开航段 → pp1 → 回执复核、一键脚本；数据格式回指 0 | 新人 / 联调 |
 | `docs/5交付说明-给后端.md` | **接之前必读**：交付状态、6 条接入要点、**已知问题（K≤N-1 / DEM 栅格类型 / 合成数据）**、服务壳职责、联调验收清单 | 后端 / 联调 |
+| `docs/6打包与分发.md` | **怎么发出去**：按接收方选形态、`uv build` 打 wheel、交付包与自检脚本、7 个坑（Python 版本 / 数据不在包内 / 样例不完整）、GitHub 与 PyPI 路径 | **作者（你）** |
+| `packaging/INSTALL.md` | 随交付包发出：Python 前置、装法（Windows / macOS / Linux）、`check_install.py` 自检输出、两个库的最小调用、常见报错表 | **接收方（后端）** |
 | `scene_io/README.md` | 零依赖数据适配层：world/mission 加载、frame 校验、懒加载桥（pp1 世界入参 / ta1 请求 / ta1 切面采样器）；ta1 的 `terrain` 子模块随包提供地形采样 | 数据工程 / 后端 |
 
 算法口径、实测基线、已知偏差、整理记录只在两库各自的 README（改代码时看）。
